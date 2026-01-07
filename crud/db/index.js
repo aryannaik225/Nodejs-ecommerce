@@ -7,7 +7,11 @@ const pool = createPool({
   password: process.env.MYSQL_PASSWORD || "test",
   host: process.env.MYSQL_HOST || "localhost",
   user: process.env.MYSQL_USER || "root",
-  database: process.env.MYSQL_DATABASE_NAME || "test"
+  database: process.env.MYSQL_DATABASE_NAME || "test",
+  ssl: {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true
+    }
 })
 
 const connectToDatabase = async() => {

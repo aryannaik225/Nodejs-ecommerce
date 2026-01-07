@@ -21,7 +21,7 @@ app.use((req, res, next) => {
 
 app.use("/api/v1", appRouter);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 app.use((err, req, res, next) => {
   console.error("SERVER ERROR:", err);
