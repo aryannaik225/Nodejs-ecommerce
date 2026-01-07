@@ -1,0 +1,266 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { ShoppingBag, ShoppingCart, Search, X, Check } from "lucide-react";
+import { Product } from "@/lib/utils/types";
+import CartPage from "@/components/CartPage";
+
+const Toast = ({ message, onClose }: { message: string; onClose: () => void }) => (
+  <div className="fixed bottom-6 right-6 z-60 animate-in slide-in-from-bottom-5 fade-in duration-300">
+    <div className="bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
+      <div className="bg-green-500 rounded-full p-1">
+        <Check className="w-3 h-3 text-white" />
+      </div>
+      <p className="text-sm font-medium">{message}</p>
+      <button onClick={onClose} className="ml-2 text-gray-400 hover:text-white">
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+);
+
+const ProductSkeleton = () => (
+  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm animate-pulse">
+    <div className="bg-gray-200 h-48 w-full rounded-xl mb-4" />
+    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+    <div className="h-4 bg-gray-200 rounded w-1/2 mb-4" />
+    <div className="h-10 bg-gray-200 rounded-lg w-full" />
+  </div>
+);
+
+export default function Home() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartRefreshKey, setCartRefreshKey] = useState(0);
+  const [toastMessage, setToastMessage] = useState("");
+  
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const toggleCart = () => setIsCartOpen(!isCartOpen);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
+  const addToCart = async (productId: number) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Please login to add items to cart");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/api/v1/cart/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId }),
+      });
+
+      if (res.ok) {
+        setCartRefreshKey((prev) => prev + 1);
+        setToastMessage("Product added to cart successfully");
+      }
+    } catch (error) {
+      console.error("Error adding to cart");
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/v1/products/");
+      const data = await res.json();
+      setProducts(data.products || []);
+    } catch (error) {
+      console.error("Failed to fetch products", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredProducts = products.filter((product) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      product.title.toLowerCase().includes(query) ||
+      product.description.toLowerCase().includes(query)
+    );
+  });
+
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans selection:bg-gray-900 selection:text-white">
+      {toastMessage && (
+        <Toast message={toastMessage} onClose={() => setToastMessage("")} />
+      )}
+      
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+            onClick={toggleCart}
+          />
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300 flex flex-col">
+            <div className="p-4 flex justify-between items-center border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">Your Cart</h2>
+              <button
+                onClick={toggleCart}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <CartPage key={cartRefreshKey} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="bg-gray-900 text-white p-1.5 rounded-lg">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-gray-900 hidden sm:block">Store.</span>
+          </div>
+
+          <div className="flex-1 max-w-md relative">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <Search className="w-4 h-4" />
+            </div>
+            <input 
+              type="text" 
+              placeholder="Search for products..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-100 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="h-4 w-px bg-gray-200"></div>
+            <button
+              onClick={toggleCart}
+              className="relative group p-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ShoppingCart className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div className="bg-white border-b border-gray-100 mb-10">
+        <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 text-center">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">
+            Curated Quality.
+          </h1>
+          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
+            Explore our collection of premium products designed to elevate your lifestyle.
+          </p>
+        </div>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-6 pb-20">
+        
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">New Arrivals</h2>
+          <span className="text-sm text-gray-500">
+            {loading ? "..." : filteredProducts.length} Items
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {loading
+            ? [...Array(8)].map((_, i) => <ProductSkeleton key={i} />)
+            : filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="group bg-white rounded-2xl p-4 border border-transparent hover:border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-col"
+                  >
+                    <div className="relative aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4">
+                      {product.image ? (
+                        <img
+                          src={product.image}
+                          alt={product.title}
+                          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 mix-blend-multiply"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                          No Image
+                        </div>
+                      )}
+                      
+                      <button
+                        onClick={() => addToCart(product.id)}
+                        className="absolute bottom-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-gray-900 hover:text-white"
+                      >
+                        <PlusIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="flex-1 flex flex-col">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-base font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                          {product.title}
+                        </h3>
+                        <span className="font-bold text-gray-900 text-sm">
+                          ₹{product.price}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-1">
+                        {product.description}
+                      </p>
+                      
+                      <button
+                        onClick={() => addToCart(product.id)}
+                        className="w-full bg-gray-50 text-gray-900 hover:bg-gray-900 hover:text-white py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full py-20 text-center">
+                  <div className="inline-flex bg-gray-100 p-4 rounded-full mb-4">
+                    <Search className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">No products found</h3>
+                  <p className="text-gray-500">
+                    We couldn't find any items matching "{searchQuery}".
+                  </p>
+                </div>
+              )
+          }
+        </div>
+      </main>
+    </div>
+  );
+}
+
+const PlusIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <line x1="12" y1="5" x2="12" y2="19"></line>
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
+);
