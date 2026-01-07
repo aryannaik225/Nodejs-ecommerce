@@ -43,7 +43,7 @@ export default function AdminDashboard() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/v1/products/");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/`);
       const data = await res.json();
       setProducts(data.products || []);
     } catch (error) {
@@ -58,7 +58,7 @@ export default function AdminDashboard() {
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/v1/products/delete/${id}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/delete/${id}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(),
@@ -74,8 +74,8 @@ export default function AdminDashboard() {
     e.preventDefault();
     const isEdit = !!editingProduct;
     const url = isEdit
-      ? `http://localhost:5000/api/v1/products/update/${editingProduct.id}`
-      : `http://localhost:5000/api/v1/products/create`;
+      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/update/${editingProduct.id}`
+      : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/create`;
 
     const method = isEdit ? "PUT" : "POST";
 

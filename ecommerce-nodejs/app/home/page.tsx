@@ -58,7 +58,7 @@ export default function Home() {
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/v1/cart/add", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/cart/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -78,7 +78,7 @@ export default function Home() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/v1/products/");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/`);
       const data = await res.json();
       setProducts(data.products || []);
     } catch (error) {

@@ -21,7 +21,7 @@ const CartPage = () => {
   const fetchCart = async () => {
     try {
       const res = await fetch(
-        `http://localhost:5000/api/v1/cart?t=${Date.now()}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/cart?t=${Date.now()}`,
         {
           headers: getHeaders(),
           cache: "no-store",
@@ -50,7 +50,7 @@ const CartPage = () => {
       )
     );
     try {
-      const res = await fetch("http://localhost:5000/api/v1/cart/update", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/cart/update`, {
         method: "PUT",
         headers: getHeaders(),
         body: JSON.stringify({ productId, quantity: newQty }),
@@ -67,7 +67,7 @@ const CartPage = () => {
     );
 
     try {
-      await fetch(`http://localhost:5000/api/v1/cart/remove/${productId}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/cart/remove/${productId}`, {
         method: "DELETE",
         headers: getHeaders(),
       });
