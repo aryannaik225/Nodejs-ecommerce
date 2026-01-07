@@ -127,12 +127,12 @@ export default function Home() {
 
       <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 shrink-0">
+          <a href="/" className="flex items-center gap-2 shrink-0">
             <div className="bg-gray-900 text-white p-1.5 rounded-lg">
               <ShoppingBag className="w-5 h-5" />
             </div>
             <span className="text-xl font-bold tracking-tight text-gray-900 hidden sm:block">Store.</span>
-          </div>
+          </a>
 
           <div className="flex-1 max-w-md relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">

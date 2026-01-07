@@ -12,6 +12,7 @@ import {
   Package,
   ChevronRight,
   ImageIcon,
+  ShoppingBag,
 } from "lucide-react";
 import { Product } from "@/lib/utils/types";
 
@@ -123,13 +124,21 @@ export default function AdminDashboard() {
       
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+          {/* <div className="flex items-center gap-2 text-sm text-gray-500">
             <span className="flex items-center gap-2 font-medium text-gray-900">
               <LayoutDashboard className="w-4 h-4" /> Dashboard
             </span>
             <ChevronRight className="w-4 h-4" />
             <span className="font-medium text-gray-900">Products</span>
-          </div>
+          </div> */}
+
+          <a href="/" className="flex items-center gap-2 shrink-0">
+            <div className="bg-gray-900 text-white p-1.5 rounded-lg">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-gray-900 hidden sm:block">Store.</span>
+          </a>
+          
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold text-gray-700">
               AD
@@ -162,7 +171,7 @@ export default function AdminDashboard() {
             </div>
             <button
               onClick={openCreateModal}
-              className="bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-all shadow-sm active:scale-95"
+              className="bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg cursor-pointer flex items-center gap-2 text-sm font-medium transition-all shadow-sm active:scale-95"
             >
               <Plus className="w-4 h-4" /> Add Product
             </button>
