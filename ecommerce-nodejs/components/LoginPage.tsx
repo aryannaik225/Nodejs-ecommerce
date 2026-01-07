@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Eye, EyeOff, Lock, Mail, User, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -14,6 +14,13 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      router.push("/home");
+    }
+  }, [router]);
 
   const toggleMode = () => {
     setIsLogin(!isLogin);
@@ -50,6 +57,10 @@ const LoginPage: React.FC = () => {
       if (isLogin) {
         localStorage.setItem("token", data.token);
         
+        if (data.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
+
         router.push("/home"); 
       } else {
         setIsLogin(true);
