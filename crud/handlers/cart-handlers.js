@@ -1,4 +1,4 @@
-import { getCartByUserId, addToCart, updateCartQuantity, removeFromCart } from "../db/cart-queries.js";
+import { getCartByUserId, addToCart, updateCartQuantity, removeFromCart, clearCart } from "../db/cart-queries.js";
 
 export const getCart = async (req, res) => {
   try {
@@ -46,5 +46,15 @@ export const removeItem = async (req, res) => {
     return res.status(200).json({ message: "Item removed" });
   } catch (error) {
     return res.status(500).json({ message: "Error removing item" });
+  }
+};
+
+export const clearUserCart = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    await clearCart(userId);
+    return res.status(200).json({ message: "Cart cleared" });
+  } catch (error) {
+    return res.status(500).json({ message: "Error clearing cart" });
   }
 };

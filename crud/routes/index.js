@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { createProduct, deleteProduct, getAllProducts, getProduct, updateProduct } from '../handlers/index.js';
 import { login, signup } from '../handlers/user-handlers.js';
-import { getCart, addItemToCart, updateItemQuantity, removeItem } from '../handlers/cart-handlers.js';
+import { getCart, addItemToCart, updateItemQuantity, removeItem, clearUserCart } from '../handlers/cart-handlers.js';
 import { verifyToken } from '../utils/auth-middleware.js';
 
 const appRouter = Router();
@@ -25,5 +25,6 @@ appRouter.get('/cart', verifyToken, getCart);
 appRouter.post('/cart/add', verifyToken, addItemToCart);
 appRouter.put('/cart/update', verifyToken, updateItemQuantity);
 appRouter.delete('/cart/remove/:productId', verifyToken, removeItem);
+appRouter.delete('/cart/clear', verifyToken, clearUserCart);
 
 export default appRouter;

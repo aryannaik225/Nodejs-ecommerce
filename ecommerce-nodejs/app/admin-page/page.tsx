@@ -240,7 +240,7 @@ export default function AdminDashboard() {
                         </div>
                       </td>
                       <td className="px-6 py-3 text-sm font-medium text-gray-900">
-                        ₹{Number(product.price).toFixed(2)}
+                        ${Number(product.price).toFixed(2)}
                       </td>
                       <td className="px-6 py-3 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -317,7 +317,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                      Price (₹)
+                      Price ($)
                     </label>
                     <input
                       type="number"

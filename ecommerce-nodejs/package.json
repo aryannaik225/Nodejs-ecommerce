@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@paypal/paypal-server-sdk": "^2.1.0",
+    "@paypal/react-paypal-js": "^8.9.2",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",

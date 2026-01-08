@@ -52,3 +52,14 @@ export const removeFromCart = async (userId, productId) => {
     throw error;
   }
 }
+
+export const clearCart = async (userId) => {
+  const QUERY = "DELETE FROM cart_items WHERE user_id = ?";
+  try {
+    const [result] = await pool.query(QUERY, [userId]);
+    return result;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
