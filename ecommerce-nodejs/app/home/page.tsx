@@ -28,7 +28,7 @@ const Toast = ({
   message: string;
   onClose: () => void;
 }) => (
-  <div className="fixed bottom-6 right-6 z-[60] animate-in slide-in-from-bottom-5 fade-in duration-300">
+  <div className="fixed bottom-6 right-6 z-60 animate-in slide-in-from-bottom-5 fade-in duration-300">
     <div className="bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
       <div className="bg-green-500 rounded-full p-1">
         <Check className="w-3 h-3 text-white" />
