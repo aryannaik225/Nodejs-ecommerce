@@ -33,7 +33,11 @@ export default function PaypalCheckout({
         body: JSON.stringify({ amount: amount }),
       });
 
-      if (!res.ok) throw new Error("Could not create order");
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("BACKEND ERROR RESPONSE:", errorData);
+        throw new Error("Could not create order")
+      };
 
       const order = await res.json();
       return order.id;
