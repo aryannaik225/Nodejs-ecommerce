@@ -27,7 +27,7 @@ export default function PaypalCheckout({
 
   const handleCreateOrder = async () => {
     try {
-      const res = await fetch("/api/paypal/create-order", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/paypal/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: amount }),
@@ -46,7 +46,7 @@ export default function PaypalCheckout({
   const handleOnApprove = async (data: any) => {
     setStatus("processing");
     try {
-      const res = await fetch("/api/paypal/capture-order", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/paypal/capture-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderID: data.orderID }),
@@ -97,7 +97,7 @@ export default function PaypalCheckout({
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center animate-in zoom-in-95 duration-300">
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-          <CheckCircle2 className="w-8 h-8 text-green-600" />
+          <CheckCircle2 className="w-8 h-8 text-green-600" /> 
         </div>
         <h3 className="text-xl font-bold text-gray-900 mb-2">
           Payment Successful!

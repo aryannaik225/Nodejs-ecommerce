@@ -3,6 +3,7 @@ import appRouter from './routes/index.js';
 import { config } from 'dotenv';
 import { connectToDatabase } from './db/index.js';
 import cors from 'cors';
+import paypalRouter from './Paypal/routes/paypalRoute.js';
 
 // docker run --name sqldb -d -p 3307:3306 --rm -v mysqldata:/var/lib/mysql -e MYSQL_ROOT_PASSWORD='test' mysql:8.0
 // mysql -u root -ptest
@@ -24,6 +25,7 @@ app.use((req, res, next) => {
 });
 
 app.use("/api/v1", appRouter);
+app.use('/api/paypal', paypalRouter);
 
 const PORT = process.env.PORT || 10000;
 
