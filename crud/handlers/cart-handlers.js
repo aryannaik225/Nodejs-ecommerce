@@ -2,7 +2,7 @@ import { getCartByUserId, addToCart, updateCartQuantity, removeFromCart, clearCa
 
 export const getCart = async (req, res) => {
   try {
-    const userId = req.user.id; // Extracted from JWT
+    const userId = req.user.id;
     const cart = await getCartByUserId(userId);
     return res.status(200).json({ cart });
   } catch (error) {

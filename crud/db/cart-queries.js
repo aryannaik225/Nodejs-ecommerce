@@ -3,11 +3,30 @@ import prisma from "./prisma.js";
 export const getCartByUserId = async (userId) => {
   try {
     const cart = await prisma.cart_items.findMany({
-      where: { user_id: userId },
-      include: {
-        products: true,
+      where: {
+        user_id: userId,
       },
-    })
+      include: {
+        products: {
+          select: {
+            title: true,
+            price: true,
+            image: true,
+            id: true,
+          }
+        }
+      }
+    });
+
+    return cart.map(item => ({
+      id: item.id,
+      quantity: item.quantity,
+      product_id: item.product_id,
+      title: item.products.title,
+      price: item.products.price,
+      image: item.products.image
+    }));
+
     return cart;
   } catch (error) {
     console.log("Error fetching cart", error);
@@ -33,7 +52,7 @@ export const addToCart = async (userId, productId) => {
         quantity: 1,
       },
       include: {
-        products: true, 
+        products: true,
       },
     });
     return item;
