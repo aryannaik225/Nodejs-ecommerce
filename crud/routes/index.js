@@ -6,10 +6,10 @@ import { verifyToken } from '../utils/auth-middleware.js';
 
 const appRouter = Router();
 
-appRouter.use((req, res, next) => {
-  console.log(`Incoming request: ${req.method} ${req.originalUrl}`);
-  next();
-});
+// appRouter.use((req, res, next) => {
+//   console.log(`Incoming request: ${req.method} ${req.originalUrl}`);
+//   next();
+// });
 
 appRouter.get('/products', getAllProducts)
 appRouter.get('/products/:id', getProduct)
