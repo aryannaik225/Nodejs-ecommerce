@@ -2,11 +2,7 @@ import { pool } from "./index.js";
 import prisma from "./prisma.js";
 
 export const findUserByEmail = async (email) => {
-  // const QUERY = "SELECT * FROM users WHERE email = ?";
   try {
-    // const [rows] = await pool.query(QUERY, [email]);
-    // return rows[0];
-
     const user = await prisma.users.findUnique({
       where: { email: email },
     });
@@ -18,11 +14,7 @@ export const findUserByEmail = async (email) => {
 };
 
 export const createUser = async (name, email, password) => {
-  // const QUERY = "INSERT INTO users (name, email, password) VALUES (? , ?, ?)"
   try {
-    // const [result] = await pool.query(QUERY, [name, email, password])
-    // return result;
-
     const newUser = await prisma.users.create({
       data: {
         name: name,
