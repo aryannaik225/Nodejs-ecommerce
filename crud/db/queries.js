@@ -10,7 +10,7 @@ export const find = async () => {
   }
 }
 
-export const findById = async (id) => {
+export const findByID = async (id) => {
   try {
     const product = await prisma.products.findUnique({
       where: {
