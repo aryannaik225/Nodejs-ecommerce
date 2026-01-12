@@ -1,7 +1,6 @@
 import express from 'express';
 import appRouter from './routes/index.js';
 import { config } from 'dotenv';
-import { connectToDatabase } from './db/index.js';
 import cors from 'cors';
 import paypalRouter from './Paypal/routes/paypalRoute.js';
 
@@ -34,11 +33,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal Server Error", error: err.message });
 });
 
-connectToDatabase()
-  .then(() => {
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  })
-  .catch((error) => {
-    console.log("Error occured with mysql connection. Error = ", error);
-    process.exit(1);
-  })
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+})
