@@ -7,7 +7,7 @@ export const findUserByEmail = async (email) => {
     // const [rows] = await pool.query(QUERY, [email]);
     // return rows[0];
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email: email },
     });
     return user;
@@ -23,7 +23,7 @@ export const createUser = async (name, email, password) => {
     // const [result] = await pool.query(QUERY, [name, email, password])
     // return result;
 
-    const newUser = await prisma.user.create({
+    const newUser = await prisma.users.create({
       data: {
         name: name,
         email: email,
