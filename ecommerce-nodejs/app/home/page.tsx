@@ -12,7 +12,7 @@ import {
   ArrowLeft,
   ShieldCheck,
 } from "lucide-react";
-import { Product } from "@/lib/utils/types";
+import { Product, Category } from "@/lib/utils/types";
 import CartPage from "@/components/CartPage";
 import PaypalCheckout from "@/components/PayPalCheckout";
 
@@ -134,6 +134,9 @@ const UserMenu = () => {
 export default function Home() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  
   const [loading, setLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartRefreshKey, setCartRefreshKey] = useState(0);
@@ -177,6 +180,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   useEffect(() => {
@@ -230,12 +234,30 @@ export default function Home() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/categories/`
+      );
+      const data = await res.json();
+      setCategories(data.categories || []);
+    } catch (error) {
+      console.error("Failed to fetch categories", error);
+    }
+  };
+
   const filteredProducts = products.filter((product) => {
     const query = searchQuery.toLowerCase();
-    return (
+    
+    const matchesSearch = 
       product.title.toLowerCase().includes(query) ||
-      product.description.toLowerCase().includes(query)
-    );
+      product.description.toLowerCase().includes(query);
+
+    const matchesCategory = 
+      selectedCategory === null || 
+      (product.categories && product.categories.some(c => c.id === selectedCategory));
+
+    return matchesSearch && matchesCategory;
   });
 
   return (
@@ -246,7 +268,7 @@ export default function Home() {
 
       {isCheckoutOpen && (
         <div className="fixed inset-0 z-50 bg-gray-100 overflow-y-auto animate-in fade-in duration-200">
-          <div className="min-h-screen flex flex-col">
+           <div className="min-h-screen flex flex-col">
             <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
               <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -279,8 +301,7 @@ export default function Home() {
                       Payment Method
                     </h2>
                     <p className="text-gray-500 text-sm mb-6">
-                      Complete your purchase securely using PayPal. You will be
-                      redirected to PayPal to finish the transaction.
+                      Complete your purchase securely using PayPal.
                     </p>
 
                     <div className="w-full">
@@ -289,13 +310,6 @@ export default function Home() {
                         onSuccess={handlePaymentSuccess}
                       />
                     </div>
-                  </div>
-
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-sm text-gray-500">
-                    <p>
-                      By proceeding, you agree to our Terms of Service and
-                      Privacy Policy.
-                    </p>
                   </div>
                 </div>
 
@@ -376,7 +390,6 @@ export default function Home() {
 
           <div className="flex items-center gap-4 shrink-0">
             <div className="h-4 w-px bg-gray-200 hidden sm:block"></div>
-
             <button
               onClick={toggleCart}
               className="relative group p-2 text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
@@ -390,28 +403,58 @@ export default function Home() {
                 {cartItemCount}
               </span>
             </button>
-
             <UserMenu />
           </div>
         </div>
       </nav>
 
-      <div className="bg-white border-b border-gray-100 mb-10">
-        <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 text-center">
+      <div className="bg-white border-b border-gray-100 mb-10 pb-8">
+        <div className="max-w-7xl mx-auto px-6 pt-16 md:pt-24 pb-8 text-center">
           <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">
             Curated Quality.
           </h1>
-          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-            Explore our collection of premium products designed to elevate your
-            lifestyle.
+          <p className="text-lg text-gray-500 max-w-2xl mx-auto mb-10">
+            Explore our collection of premium products designed to elevate your lifestyle.
           </p>
+
+          {categories.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-2 max-w-3xl mx-auto">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 border ${
+                  selectedCategory === null
+                    ? "bg-gray-900 text-white border-gray-900 shadow-md transform scale-105"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                All Products
+              </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 border ${
+                    selectedCategory === cat.id
+                      ? "bg-gray-900 text-white border-gray-900 shadow-md transform scale-105"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       <main className="max-w-7xl mx-auto px-6 pb-20">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">New Arrivals</h2>
-          <span className="text-sm text-gray-500">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {selectedCategory 
+              ? categories.find(c => c.id === selectedCategory)?.name 
+              : "New Arrivals"}
+          </h2>
+          <span className="text-sm text-gray-500 font-medium">
             {loading ? "..." : filteredProducts.length} Items
           </span>
         </div>
@@ -455,6 +498,15 @@ export default function Home() {
                       ${product.price}
                     </span>
                   </div>
+                  
+                  <div className="flex gap-1 mb-2 overflow-hidden flex-wrap">
+                    {product.categories?.slice(0, 2).map((c) => (
+                       <span key={c.id} className="text-[10px] uppercase font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                         {c.name}
+                       </span>
+                    ))}
+                  </div>
+
                   <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-1">
                     {product.description}
                   </p>
@@ -477,8 +529,13 @@ export default function Home() {
                 No products found
               </h3>
               <p className="text-gray-500">
-                We couldn't find any items matching "{searchQuery}".
+                We couldn't find any items matching "{searchQuery}" {selectedCategory && "in this category"}.
               </p>
+              {selectedCategory && (
+                 <button onClick={() => setSelectedCategory(null)} className="mt-4 text-sm text-blue-600 hover:underline font-medium">
+                   Clear Filters
+                 </button>
+              )}
             </div>
           )}
         </div>

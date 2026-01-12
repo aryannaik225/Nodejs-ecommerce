@@ -8,16 +8,16 @@ import {
   X,
   Save,
   Search,
-  LayoutDashboard,
   Package,
-  ChevronRight,
   ImageIcon,
   ShoppingBag,
+  Check,
 } from "lucide-react";
-import { Product } from "@/lib/utils/types";
+import { Product, Category } from "@/lib/utils/types";
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,10 +28,12 @@ export default function AdminDashboard() {
     description: "",
     price: "",
     image: "",
+    categoryIds: [] as number[],
   });
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   const getAuthHeaders = () => {
@@ -40,6 +42,16 @@ export default function AdminDashboard() {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     };
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/categories`);
+      const data = await res.json();
+      setCategories(data.categories || []);
+    } catch (error) {
+      console.error("Fetch categories error:", error);
+    }
   };
 
   const fetchProducts = async () => {
@@ -98,19 +110,36 @@ export default function AdminDashboard() {
 
   const openCreateModal = () => {
     setEditingProduct(null);
-    setFormData({ title: "", description: "", price: "", image: "" });
+    setFormData({ title: "", description: "", price: "", image: "", categoryIds: [] });
     setIsModalOpen(true);
   };
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
+    
+    const existingIds = product.categories 
+      ? product.categories.map((c) => c.id) 
+      : [];
+
     setFormData({
       title: product.title,
       description: product.description,
       price: product.price.toString(),
       image: product.image || "",
+      categoryIds: existingIds,
     });
     setIsModalOpen(true);
+  };
+
+  const toggleCategory = (catId: number) => {
+    setFormData((prev) => {
+      const isSelected = prev.categoryIds.includes(catId);
+      if (isSelected) {
+        return { ...prev, categoryIds: prev.categoryIds.filter((id) => id !== catId) };
+      } else {
+        return { ...prev, categoryIds: [...prev.categoryIds, catId] };
+      }
+    });
   };
 
   const closeModal = () => setIsModalOpen(false);
@@ -124,14 +153,6 @@ export default function AdminDashboard() {
       
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          {/* <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span className="flex items-center gap-2 font-medium text-gray-900">
-              <LayoutDashboard className="w-4 h-4" /> Dashboard
-            </span>
-            <ChevronRight className="w-4 h-4" />
-            <span className="font-medium text-gray-900">Products</span>
-          </div> */}
-
           <a href="/" className="flex items-center gap-2 shrink-0">
             <div className="bg-gray-900 text-white p-1.5 rounded-lg">
               <ShoppingBag className="w-5 h-5" />
@@ -208,6 +229,7 @@ export default function AdminDashboard() {
                   <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
                     <th className="px-6 py-4 w-20">Image</th>
                     <th className="px-6 py-4">Product Name</th>
+                    <th className="px-6 py-4">Categories</th>
                     <th className="px-6 py-4 w-30">Price</th>
                     <th className="px-6 py-4 w-25 text-right">Actions</th>
                   </tr>
@@ -239,6 +261,24 @@ export default function AdminDashboard() {
                           {product.description}
                         </div>
                       </td>
+                      
+                      <td className="px-6 py-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {product.categories && product.categories.length > 0 ? (
+                            product.categories.map((cat) => (
+                              <span 
+                                key={cat.id} 
+                                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
+                              >
+                                {cat.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">None</span>
+                          )}
+                        </div>
+                      </td>
+
                       <td className="px-6 py-3 text-sm font-medium text-gray-900">
                         ${Number(product.price).toFixed(2)}
                       </td>
@@ -283,8 +323,8 @@ export default function AdminDashboard() {
           />
 
           
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100 flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
               <h3 className="font-semibold text-gray-900">
                 {editingProduct ? "Edit Product" : "Add New Product"}
               </h3>
@@ -296,7 +336,7 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
@@ -312,6 +352,36 @@ export default function AdminDashboard() {
                       setFormData({ ...formData, title: e.target.value })
                     }
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                    Categories
+                  </label>
+                  {categories.length === 0 ? (
+                    <p className="text-sm text-gray-400 italic">No categories found.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {categories.map((cat) => {
+                        const isSelected = formData.categoryIds.includes(cat.id);
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => toggleCategory(cat.id)}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
+                              isSelected
+                                ? "bg-gray-900 text-white border-gray-900 shadow-md shadow-gray-900/10"
+                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            <span className="truncate">{cat.name}</span>
+                            {isSelected && <Check className="w-3 h-3 ml-1 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-5">
