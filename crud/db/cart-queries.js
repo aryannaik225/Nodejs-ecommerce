@@ -1,21 +1,4 @@
-import { pool } from "./index.js";
 import prisma from "./prisma.js";
-
-// export const getCartByUserId = async (userId) => {
-//   const QUERY = `
-//     SELECT c.id, c.quantity, p.title, p.price, p.image, p.id as product_id
-//     FROM cart_items c
-//     JOIN products p ON c.product_id = p.id
-//     WHERE c.user_id = ?
-//   `;
-//   try {
-//     const [rows] = await pool.query(QUERY, [userId]);
-//     return rows;
-//   } catch (error) {
-//     console.log(error);
-//     throw error;
-//   }
-// }
 
 export const getCartByUserId = async (userId) => {
   try {
@@ -32,55 +15,8 @@ export const getCartByUserId = async (userId) => {
   }
 }
 
-// export const addToCart = async (userId, productId) => {
-//   const QUERY = `
-//     INSERT INTO cart_items (user_id, product_id, quantity)
-//     VALUES (?, ?, 1)
-//     ON DUPLICATE KEY UPDATE quantity = quantity + 1
-//   `;
-//   try {
-//     const [result] = await pool.query(QUERY, [userId, productId]);
-//     return result;
-//   } catch (error) {
-//     console.log(error);
-//     throw error;
-//   }
-// }
-
 export const addToCart = async (userId, productId) => {
   try {
-    // const existingItem = await prisma.cart_items.findUnique({
-    //   where: {
-    //     user_id_product_id: {
-    //       user_id: userId,
-    //       product_id: productId,
-    //     },
-    //   },
-    // });
-    // if (existingItem) {
-    //   const updatedItem = await prisma.cart_items.update({
-    //     where: {
-    //       user_id_product_id: {
-    //         user_id: userId,
-    //         product_id: productId,
-    //       },
-    //     },
-    //     data: {
-    //       quantity: existingItem.quantity + 1,
-    //     },
-    //   });
-    //   return updatedItem;
-    // } else {
-    //   const newItem = await prisma.cart_items.create({
-    //     data: {
-    //       user_id: userId,
-    //       product_id: productId,
-    //       quantity: 1,
-    //     },
-    //   });
-    //   return newItem;
-    // }
-
     const item = await prisma.cart_items.upsert({
       where: {
         user_id_product_id: {
@@ -96,6 +32,9 @@ export const addToCart = async (userId, productId) => {
         product_id: productId,
         quantity: 1,
       },
+      include: {
+        products: true, 
+      },
     });
     return item;
   } catch (error) {
@@ -103,17 +42,6 @@ export const addToCart = async (userId, productId) => {
     throw error;
   }
 }
-
-// export const updateCartQuantity = async (userId, productId, quantity) => {
-//   const QUERY = "UPDATE cart_items SET quantity = ? WHERE user_id = ? AND product_id = ?";
-//   try {
-//     const [result] = await pool.query(QUERY, [quantity, userId, productId]);
-//     return result;
-//   } catch (error) {
-//     console.log(error);
-//     throw error;
-//   }
-// }
 
 export const updateCartQuantity = async (userId, productId, quantity) => {
   try {
@@ -135,17 +63,6 @@ export const updateCartQuantity = async (userId, productId, quantity) => {
   }
 }
 
-// export const removeFromCart = async (userId, productId) => {
-//   const QUERY = "DELETE FROM cart_items WHERE user_id = ? AND product_id = ?";
-//   try {
-//     const [result] = await pool.query(QUERY, [userId, productId]);
-//     return result;
-//   } catch (error) {
-//     console.log(error);
-//     throw error;
-//   }
-// }
-
 export const removeFromCart = async (userId, productId) => {
   try {
     const deletedItem = await prisma.cart_items.delete({
@@ -162,17 +79,6 @@ export const removeFromCart = async (userId, productId) => {
     throw error;
   }
 }
-
-// export const clearCart = async (userId) => {
-//   const QUERY = "DELETE FROM cart_items WHERE user_id = ?";
-//   try {
-//     const [result] = await pool.query(QUERY, [userId]);
-//     return result;
-//   } catch (error) {
-//     console.log(error);
-//     throw error;
-//   }
-// }
 
 export const clearCart = async (userId) => {
   try {
