@@ -15,7 +15,7 @@ export const addItemToCart = async (req, res) => {
   const { productId } = req.body;
   const userId = req.user.id;
   try {
-    await addToCart(userId, productId);
+    await addToCart(userId, Number(productId));
     return res.status(200).json({ message: "Added to cart" });
   } catch (error) {
     console.log(error);
@@ -26,11 +26,14 @@ export const addItemToCart = async (req, res) => {
 export const updateItemQuantity = async (req, res) => {
   const { productId, quantity } = req.body;
   const userId = req.user.id;
+
+  const pId = Number(productId);
+  const qty = Number(quantity);
   try {
     if (quantity < 1) {
-      await removeFromCart(userId, productId);
+      await removeFromCart(userId, pId);
     } else {
-      await updateCartQuantity(userId, productId, quantity);
+      await updateCartQuantity(userId, pId, qty);
     }
     return res.status(200).json({ message: "Cart updated" });
   } catch (error) {
@@ -39,7 +42,7 @@ export const updateItemQuantity = async (req, res) => {
 };
 
 export const removeItem = async (req, res) => {
-  const productId = req.params.productId;
+  const productId = Number(req.params.productId);
   const userId = req.user.id;
   try {
     await removeFromCart(userId, productId);
