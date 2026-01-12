@@ -1,4 +1,3 @@
-import { pool } from "./index.js";
 import prisma from "./prisma.js";
 
 export const findUserByEmail = async (email) => {
