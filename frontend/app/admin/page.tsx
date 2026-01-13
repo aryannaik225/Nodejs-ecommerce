@@ -46,7 +46,7 @@ export default function AdminDashboard() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/categories`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories`);
       const data = await res.json();
       setCategories(data.categories || []);
     } catch (error) {
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/`);
       const data = await res.json();
       setProducts(data.products || []);
     } catch (error) {
@@ -71,7 +71,7 @@ export default function AdminDashboard() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/delete/${id}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/delete/${id}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(),
@@ -87,8 +87,8 @@ export default function AdminDashboard() {
     e.preventDefault();
     const isEdit = !!editingProduct;
     const url = isEdit
-      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/update/${editingProduct.id}`
-      : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/create`;
+      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/update/${editingProduct.id}`
+      : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/create`;
 
     const method = isEdit ? "PUT" : "POST";
 

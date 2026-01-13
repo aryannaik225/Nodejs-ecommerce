@@ -35,7 +35,7 @@ const CartPage = ({
   const fetchCart = async () => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/cart?t=${Date.now()}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart?t=${Date.now()}`,
         {
           headers: getHeaders(),
           cache: "no-store",
@@ -91,7 +91,7 @@ const CartPage = ({
     setCartItemCount((count) => count + update);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/cart/update`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart/update`,
         {
           method: "PUT",
           headers: getHeaders(),
@@ -110,7 +110,7 @@ const CartPage = ({
     );
     try {
       await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/cart/remove/${productId}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart/remove/${productId}`,
         { method: "DELETE", headers: getHeaders() }
       );
       fetchCart();

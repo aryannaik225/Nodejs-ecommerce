@@ -1,4 +1,4 @@
-import { create, find, findByID, update, deletee, findAllCategories } from "../db/queries.js";
+import { create, find, findByID, update, deletee, findAllCategories } from "../TiDB/product-queries.js";
 
 export const getCategories = async (req, res) => {
   try {

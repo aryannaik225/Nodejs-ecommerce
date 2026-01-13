@@ -20,7 +20,7 @@ export default function Home() {
 
           <div className="flex items-center gap-6">
             <button 
-              onClick={() => router.push('/auth-page')}
+              onClick={() => router.push('/auth')}
               className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
             >
               Sign In
@@ -64,7 +64,7 @@ export default function Home() {
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             <button 
-              onClick={() => router.push('/auth-page')}
+              onClick={() => router.push('/auth')}
               className="w-full sm:w-auto bg-white text-gray-900 cursor-pointer border border-gray-200 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-50 hover:border-gray-300 transition-all"
             >
               Log In

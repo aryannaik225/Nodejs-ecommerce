@@ -1,4 +1,4 @@
-import prisma from "./prisma.js";
+import prisma from "../config/prisma.js";
 
 export const getCartByUserId = async (userId) => {
   try {

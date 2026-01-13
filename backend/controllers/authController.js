@@ -1,4 +1,4 @@
-import { createUser, findUserByEmail } from "../db/user-queries.js";
+import { createUser, findUserByEmail } from "../TiDB/user-queries.js";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken";
 

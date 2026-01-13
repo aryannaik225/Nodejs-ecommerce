@@ -78,13 +78,13 @@ const UserMenu = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    router.push("/auth-page");
+    router.push("/auth");
   };
 
   if (!user) {
     return (
       <button
-        onClick={() => router.push("/auth-page")}
+        onClick={() => router.push("/auth")}
         className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
       >
         Sign In
@@ -160,7 +160,7 @@ export default function Home() {
     try {
       const token = localStorage.getItem("token");
       if (token) {
-        await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/cart/clear`, {
+        await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart/clear`, {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -193,13 +193,13 @@ export default function Home() {
   const addToCart = async (productId: number) => {
     const token = localStorage.getItem("token");
     if (!token) {
-      router.push("/auth-page");
+      router.push("/auth");
       return;
     }
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/cart/add`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart/add`,
         {
           method: "POST",
           headers: {
@@ -223,7 +223,7 @@ export default function Home() {
   const fetchProducts = async () => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/`
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/`
       );
       const data = await res.json();
       setProducts(data.products || []);
@@ -237,7 +237,7 @@ export default function Home() {
   const fetchCategories = async () => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/categories/`
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories/`
       );
       const data = await res.json();
       setCategories(data.categories || []);

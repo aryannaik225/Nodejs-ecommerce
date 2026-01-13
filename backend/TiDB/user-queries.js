@@ -1,4 +1,4 @@
-import prisma from "./prisma.js";
+import prisma from "../config/prisma.js";
 
 export const findUserByEmail = async (email) => {
   try {

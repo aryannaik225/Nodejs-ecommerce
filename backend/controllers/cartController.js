@@ -1,4 +1,4 @@
-import { getCartByUserId, addToCart, updateCartQuantity, removeFromCart, clearCart } from "../db/cart-queries.js";
+import { getCartByUserId, addToCart, updateCartQuantity, removeFromCart, clearCart } from "../TiDB/cart-queries.js";
 
 export const getCart = async (req, res) => {
   try {

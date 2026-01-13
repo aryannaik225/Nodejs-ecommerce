@@ -34,7 +34,7 @@ const LoginPage: React.FC = () => {
 
     try {
       const endpoint = isLogin ? "login" : "signup";
-      const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/${endpoint}`;
+      const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/${endpoint}`;
 
       const payload = isLogin
         ? { email, password }
