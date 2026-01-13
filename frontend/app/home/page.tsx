@@ -78,6 +78,7 @@ const UserMenu = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("admin_token")
     router.push("/auth");
   };
 

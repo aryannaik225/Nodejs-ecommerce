@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { loginAdminAction, verifyAdminTokenAction } from "@/lib/utils/actions"; 
 import {
   Plus,
   Pencil,
@@ -12,10 +13,19 @@ import {
   ImageIcon,
   ShoppingBag,
   Check,
+  Lock,
+  LogOut,
+  Loader2
 } from "lucide-react";
 import { Product, Category } from "@/lib/utils/types";
 
 export default function AdminDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -32,9 +42,61 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    fetchProducts();
-    fetchCategories();
+    const checkAuth = async () => {
+      const admin_token = localStorage.getItem("admin_token");
+      
+      if (!admin_token) {
+        setIsAuthChecking(false);
+        return;
+      }
+
+      const result = await verifyAdminTokenAction(admin_token);
+
+      if (result.isValid) {
+        setIsAuthenticated(true);
+      } else {
+        localStorage.removeItem("admin_token");
+        setIsAuthenticated(false);
+      }
+      setIsAuthChecking(false);
+    };
+
+    checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchProducts();
+      fetchCategories();
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsVerifying(true);
+    setLoginError("");
+
+    try {
+      const result = await loginAdminAction(adminPassword);
+
+      if (result.success && result.token) {
+        localStorage.setItem("admin_token", result.token);
+        setIsAuthenticated(true);
+      } else {
+        setLoginError("Incorrect password");
+      }
+    } catch (error) {
+      setLoginError("Verification failed. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("admin_token");
+    setIsAuthenticated(false);
+    setAdminPassword("");
+  };
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
@@ -43,7 +105,7 @@ export default function AdminDashboard() {
       Authorization: `Bearer ${token}`,
     };
   };
-
+  
   const fetchCategories = async () => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories`);
@@ -116,7 +178,6 @@ export default function AdminDashboard() {
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
-    
     const existingIds = product.categories 
       ? product.categories.map((c) => c.id) 
       : [];
@@ -148,9 +209,65 @@ export default function AdminDashboard() {
     p.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-400">
+        <Loader2 className="w-6 h-6 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+          <div className="p-8 text-center">
+            <div className="w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-gray-900/20">
+              <Lock className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Admin Access</h2>
+            <p className="text-gray-500 text-sm mb-8">
+              Please enter the secure password to manage inventory.
+            </p>
+
+            <form onSubmit={handleLogin} className="space-y-4 text-left">
+              <div>
+                <input
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="Enter password"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-all"
+                  autoFocus
+                />
+                {loginError && (
+                  <p className="text-red-500 text-xs mt-2 font-medium ml-1">
+                    {loginError}
+                  </p>
+                )}
+              </div>
+              <button
+                type="submit"
+                disabled={isVerifying}
+                className="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-xl font-semibold shadow-lg shadow-gray-900/10 hover:shadow-gray-900/20 transition-all active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+              >
+                {isVerifying && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isVerifying ? "Verifying..." : "Access Dashboard"}
+              </button>
+            </form>
+          </div>
+          <div className="bg-gray-50 px-8 py-4 border-t border-gray-100 text-center">
+            <a href="/" className="text-xs text-gray-500 hover:text-gray-900 transition-colors">
+              ← Back to Store
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-gray-900 selection:text-white">
-      
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2 shrink-0">
@@ -161,13 +278,23 @@ export default function AdminDashboard() {
           </a>
           
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold text-gray-700">
-              AD
+            <div className="flex items-center gap-2 pr-4 border-r border-gray-200 mr-2">
+              <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold text-gray-700">
+                AD
+              </div>
+              <span className="text-sm font-medium text-gray-700 hidden sm:block">Admin</span>
             </div>
+            <button 
+              onClick={handleLogout}
+              className="text-gray-500 hover:text-red-600 transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </header>
-
+      
       <main className="max-w-7xl mx-auto px-6 py-8">
         
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
