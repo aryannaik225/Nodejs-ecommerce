@@ -6,6 +6,9 @@ docker-compose up -d
 docker exec -it doris mysql -P 9030 -h 127.0.0.1 -u root
 
 
+use ecommerce;
+
+
 CREATE ROUTINE LOAD ecommerce.load_transactions_job_golden
 ON transactions
 COLUMNS

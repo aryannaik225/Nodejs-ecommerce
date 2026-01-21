@@ -35,7 +35,8 @@ services:
     environment:
       - DORIS_HOME=/opt/apache-doris
     volumes:
-      - doris_data:/opt/apache-doris/doris-be/storage
+      - doris_fe:/opt/apache-doris/doris-fe
+      - doris_be:/opt/apache-doris/doris-be/storage
     networks:
       - doris_net
 
@@ -44,4 +45,5 @@ networks:
     driver: bridge
 
 volumes:
-  doris_data:
+  doris_fe:
+  doris_be:
