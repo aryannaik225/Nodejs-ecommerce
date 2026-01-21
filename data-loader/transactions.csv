@@ -1,0 +1,5 @@
+order_id,user_id,product_name,amount,event_time
+101,50,Wireless Mouse,25.50,2023-10-01 10:00:00
+102,51,Mechanical Keyboard,120.00,2023-10-01 10:05:00
+103,50,USB-C Cable,15.00,2023-10-01 10:15:00
+104,52,Gaming Monitor,300.00,2023-10-01 11:00:00

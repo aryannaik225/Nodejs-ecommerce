@@ -1,0 +1,31 @@
+to run the doris warehouse use this
+
+docker-compose up -d
+
+
+docker exec -it doris mysql -P 9030 -h 127.0.0.1 -u root
+
+
+CREATE ROUTINE LOAD ecommerce.load_transactions_job_golden
+ON transactions
+COLUMNS
+(
+  order_id = $.order_id,
+  user_id = $.user_id,
+  product_name = $.product_name,
+  amount = $.amount,
+  event_time = $.event_time
+)
+PROPERTIES
+(
+    "format" = "json",
+    "strict_mode" = "false",
+    "max_error_number" = "100"
+)
+FROM KAFKA
+(
+    "kafka_broker_list" = "redpanda:9092",
+    "kafka_topic" = "ecommerce_final_v1",
+    "property.group.id" = "doris_golden_group",
+    "property.kafka_default_offsets" = "OFFSET_BEGINNING"
+);

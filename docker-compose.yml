@@ -1,0 +1,47 @@
+version: '3'
+services:
+  # Message Broker (Kafka)
+  # Using Redpanda here because it is 10x lighter than standard Kafka implementations
+  # but works EXACTLY the same.
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: redpanda
+    ports:
+      - "9092:9094"
+      - "9644:9644"
+    command:
+      - redpanda start
+      - --smp 1 # Limit to 1 CPU core to save resources
+      - --memory 1G # Limit to 1GB RAM
+      - --reserve-memory 0M
+      - --overprovisioned
+      - --node-id 0
+      - --check=false
+      - --kafka-addr PLAIN://0.0.0.0:9092,OUTSIDE://0.0.0.0:9094
+      - --advertise-kafka-addr PLAIN://redpanda:9092,OUTSIDE://localhost:9092
+    networks:
+      - doris_net
+
+  # Data Warehouse (Doris)
+  # Using the "All-in-One" image which contains Frontend and Backend
+  # into a single container for testing.
+  doris:
+    image: apache/doris:doris-all-in-one-2.1.0
+    container_name: doris
+    ports:
+      - "8030:8030" # FE Web UI
+      - "9030:9030" # FE MySQL Port (We connect TiDB to this)
+      - "8040:8040" # BE Web Port
+    environment:
+      - DORIS_HOME=/opt/apache-doris
+    volumes:
+      - doris_data:/opt/apache-doris/doris-be/storage
+    networks:
+      - doris_net
+
+networks:
+  doris_net:
+    driver: bridge
+
+volumes:
+  doris_data:
