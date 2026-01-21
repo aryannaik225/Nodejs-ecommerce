@@ -158,26 +158,11 @@ export default function Home() {
     setCartItemCount(0);
     setToastMessage("Order placed successfully!");
 
-    try {
-      const token = localStorage.getItem("token");
-      if (token) {
-        await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart/clear`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Failed to clear cart in backend:", error);
-    }
-
     setCartRefreshKey((prev) => prev + 1);
-
     setTimeout(() => {
       setIsCheckoutOpen(false);
     }, 5000);
-  };
+};
 
   useEffect(() => {
     fetchProducts();

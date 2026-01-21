@@ -1,0 +1,28 @@
+import { createOrderTransaction } from "../TiDB/order-queries.js";
+
+export const createOrder = async (req, res) => {
+  const userId = req.user.id;
+  const { paymentMethod } = req.body; 
+
+  try {
+    const order = await createOrderTransaction(
+        userId, 
+        paymentMethod || 'Online',
+        'paid'
+    );
+
+    return res.status(201).json({ 
+      message: "Order placed successfully", 
+      orderId: order.id 
+    });
+
+  } catch (error) {
+    console.error("Order Creation Error:", error);
+    
+    if (error.message === "CART_EMPTY") {
+      return res.status(400).json({ message: "Cannot place order with empty cart" });
+    }
+
+    return res.status(500).json({ message: "Failed to place order" });
+  }
+};

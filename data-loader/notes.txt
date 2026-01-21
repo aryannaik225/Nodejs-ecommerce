@@ -6,29 +6,51 @@ docker-compose up -d
 docker exec -it doris mysql -P 9030 -h 127.0.0.1 -u root
 
 
-use ecommerce;
+use ecommerce_analyitcs;
 
 
-CREATE ROUTINE LOAD ecommerce.load_transactions_job_golden
-ON transactions
-COLUMNS
-(
-  order_id = $.order_id,
-  user_id = $.user_id,
-  product_name = $.product_name,
-  amount = $.amount,
-  event_time = $.event_time
+CREATE TABLE order_events (
+  order_item_id BIGINT,
+  event_time DATETIME,
+  order_id BIGINT,
+  user_id BIGINT,
+  product_id BIGINT,
+  product_name VARCHAR(64),
+  quantity INT,
+  price INT,
+  revenue INT
 )
-PROPERTIES
-(
-    "format" = "json",
-    "strict_mode" = "false",
-    "max_error_number" = "100"
+ENGINE=OLAP
+UNIQUE KEY(order_item_id, event_time)
+PARTITION BY RANGE(event_time) (
+  PARTITION p2026 VALUES LESS THAN ("2027-01-01 00:00:00")
 )
-FROM KAFKA
-(
-    "kafka_broker_list" = "redpanda:9092",
-    "kafka_topic" = "ecommerce_final_v1",
-    "property.group.id" = "doris_golden_group",
-    "property.kafka_default_offsets" = "OFFSET_BEGINNING"
+DISTRIBUTED BY HASH(order_item_id) BUCKETS 8
+PROPERTIES (
+  "replication_num" = "1",
+  "enable_unique_key_merge_on_write" = "true"
+);
+
+
+CREATE ROUTINE LOAD ecommerce_analytics.load_order_events ON order_events COLUMNS (   
+    order_item_id = $.order_item_id,   
+    order_id = $.order_id, 
+    user_id = $.user_id,
+    product_id = $.product_id,
+    product_name = $.product_name,
+    quantity = $.quantity,
+    price = $.price,
+    revenue = $.revenue,
+    event_time = $.event_time 
+) 
+PROPERTIES 
+(   
+    "format" = "json",   
+    "max_error_number" = "100" 
+) 
+FROM KAFKA (   
+    "kafka_broker_list" = "redpanda:9092",   
+    "kafka_topic" = "ecommerce_orders_v1",   
+    "property.group.id" = "doris_orders_group",   
+    "property.kafka_default_offsets" = "OFFSET_BEGINNING" 
 );

@@ -1,74 +1,79 @@
-require('dotenv').config()
-const mysql = require('mysql2/promise')
-const { Kafka } = require('kafkajs')
+require("dotenv").config();
+const mysql = require("mysql2/promise");
+const { Kafka } = require("kafkajs");
 
-const KAFKA_TOPIC = 'ecommerce_final_v1'
-const POLL_INTERVAL = 5000
+const KAFKA_TOPIC = "ecommerce_orders_v1";
+const POLL_INTERVAL = 5000;
 
-const kafka = new Kafka({ clientId: 'tidb-bridge', brokers: ['localhost:9092'] })
-const producer = kafka.producer()
+const kafka = new Kafka({
+  clientId: "tidb-orders-loader",
+  brokers: ["localhost:9092"],
+});
 
-let lastSyncedOrderId = 0
+const producer = kafka.producer();
+let lastSyncedOrderItemId = 0;
 
-const syncData = async () => {
-
-  // Connecting to the TiDB database
+async function syncOrders() {
   const connection = await mysql.createConnection({
     uri: process.env.DATABASE_URL,
-    ssl: {
-      rejectUnauthorized: true,
-    }
-  })
+    ssl: { rejectUnauthorized: true },
+  });
 
-  try {
-    await producer.connect()
-    console.log("Connected to Kafka & TiDB. Waiting for new orders...")
+  await producer.connect();
+  console.log("✅ Connected to TiDB & Kafka");
 
-    while (true) {
-      const [rows] = await connection.execute(
-                `SELECT 
-                    o.id as order_id, 
-                    o.user_id, 
-                    p.title as product_name, 
-                    o.amount, 
-                    o.created_at 
-                 FROM orders o
-                 JOIN products p ON o.product_id = p.id
-                 WHERE o.id > ? 
-                 ORDER BY o.id ASC 
-                 LIMIT 10`,
-                [lastSyncedOrderId]
-            );
+  while (true) {
+    const [rows] = await connection.execute(
+      `
+      SELECT
+        oi.id               AS order_item_id,
+        o.id                AS order_id,
+        o.user_id,
+        oi.product_id,
+        oi.product_title    AS product_name,
+        oi.quantity,
+        oi.product_price    AS price,
+        (oi.quantity * oi.product_price) AS revenue,
+        o.created_at
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE oi.id > ?
+      ORDER BY oi.id ASC
+      LIMIT 100
+      `,
+      [lastSyncedOrderItemId]
+    );
 
-      if (rows.length > 0) {
-        console.log(`Found ${rows.length} new orders in TiDB!`)
+    if (rows.length > 0) {
+      console.log(`📦 ${rows.length} new order items`);
 
-        for (const row of rows) {
-          const cleanEvent = {
-            order_id: row.order_id,
-            user_id: row.user_id,
-            product_name: row.product_name,
-            amount: parseFloat(row.amount),
-            event_time: new Date(row.created_at).toISOString().slice(0, 19).replace('T', ' '),
-          }
+      for (const row of rows) {
+        const event = {
+          order_item_id: row.order_item_id,
+          order_id: row.order_id,
+          user_id: row.user_id,
+          product_id: row.product_id,
+          product_name: row.product_name,
+          quantity: row.quantity,
+          price: row.price,
+          revenue: row.revenue,
+          event_time: new Date(row.created_at)
+            .toISOString()
+            .slice(0, 19)
+            .replace("T", " "),
+        };
 
-          await producer.send({
-            topic: KAFKA_TOPIC,
-            messages: [{ value: JSON.stringify(cleanEvent) }],
-          })
+        await producer.send({
+          topic: KAFKA_TOPIC,
+          messages: [{ value: JSON.stringify(event) }],
+        });
 
-          console.log(`   -> Sent Order #${cleanEvent.order_id}`)
-          lastSyncedOrderId = row.order_id
-        }
+        lastSyncedOrderItemId = row.order_item_id;
       }
-      await new Promise(r => setTimeout(r, POLL_INTERVAL))
     }
-  } catch (err) {
-    console.error("Error in sync process:", err.message)
-  } finally {
-    await connection.end()
-    await producer.disconnect()
+
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL));
   }
 }
 
-syncData()
+syncOrders().catch(console.error);

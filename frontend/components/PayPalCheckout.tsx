@@ -25,11 +25,19 @@ export default function PaypalCheckout({
     components: "buttons",
   };
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    }
+  }
+
   const handleCreateOrder = async () => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/paypal/create-order`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ amount: amount }),
       });
 
@@ -52,13 +60,13 @@ export default function PaypalCheckout({
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/paypal/capture-order`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ orderID: data.orderID }),
       });
 
       const orderData = await res.json();
 
-      if (!res.ok || orderData.status !== "COMPLETED") {
+      if (!res.ok) {
         const errorDetail = orderData?.details?.[0];
         const failureReason = errorDetail?.issue;
 

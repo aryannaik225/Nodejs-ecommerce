@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { createOrderTransaction } from "../TiDB/order-queries.js";
 dotenv.config();
 
 const { PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET } = process.env;
@@ -69,6 +70,7 @@ export const createOrder = async (req, res) => {
 export const captureOrder = async (req, res) => {
   try {
     const { orderID } = req.body;
+    const userId = req.user.id;
     const accessToken = await generateAccessToken();
     const url = `${BASE_URL}/v2/checkout/orders/${orderID}/capture`;
 
@@ -81,9 +83,30 @@ export const captureOrder = async (req, res) => {
     });
 
     const data = await response.json();
-    return res.status(response.status).json(data);
+
+    if (data.status !== "COMPLETED") {
+      return res.status(400).json({
+        message: "Payment not completed",
+        paypalStatus: data.status,
+      })
+    }
+
+    const order = await createOrderTransaction(
+      userId,
+      "PayPal",
+      "paid"
+    )
+
+    console.log("Order created with ID:", order.id);
+
+    return res.status(200).json({
+      message: "Payment & order successful",
+      orderId: order.id,
+      paypalOrderId: orderID,
+    });
+
   } catch (error) {
-    console.error("Error capturing order:", error);
-    return res.status(500).json({ error: "Failed to capture order" });
+    console.error("Error capturing Paypal order:", error);
+    return res.status(500).json({ error: "Failed to capture PayPal order" });
   }
 };
