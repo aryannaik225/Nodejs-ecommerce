@@ -7,7 +7,7 @@ const POLL_INTERVAL = 5000;
 
 const kafka = new Kafka({
   clientId: "tidb-orders-loader",
-  brokers: ["localhost:9092"],
+  brokers: ["localhost:9094"],
 });
 
 const producer = kafka.producer();

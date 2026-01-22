@@ -6,7 +6,7 @@ docker-compose up -d
 docker exec -it doris mysql -P 9030 -h 127.0.0.1 -u root
 
 
-use ecommerce_analyitcs;
+use ecommerce_analytics;
 
 
 CREATE TABLE order_events (
@@ -32,25 +32,170 @@ PROPERTIES (
 );
 
 
-CREATE ROUTINE LOAD ecommerce_analytics.load_order_events ON order_events COLUMNS (   
-    order_item_id = $.order_item_id,   
-    order_id = $.order_id, 
-    user_id = $.user_id,
-    product_id = $.product_id,
-    product_name = $.product_name,
-    quantity = $.quantity,
-    price = $.price,
-    revenue = $.revenue,
-    event_time = $.event_time 
-) 
-PROPERTIES 
-(   
-    "format" = "json",   
-    "max_error_number" = "100" 
-) 
-FROM KAFKA (   
-    "kafka_broker_list" = "redpanda:9092",   
-    "kafka_topic" = "ecommerce_orders_v1",   
-    "property.group.id" = "doris_orders_group",   
-    "property.kafka_default_offsets" = "OFFSET_BEGINNING" 
+
+// updated create ROUTINE
+CREATE ROUTINE LOAD ecommerce_analytics.load_order_events
+ON order_events
+COLUMNS (
+  order_item_id,
+  order_id,
+  user_id,
+  product_id,
+  product_name,
+  quantity,
+  price,
+  revenue,
+  event_time
+)
+PROPERTIES
+(
+  "format" = "json",
+  "jsonpaths" = "[\"$.order_item_id\",\"$.order_id\",\"$.user_id\",\"$.product_id\",\"$.product_name\",\"$.quantity\",\"$.price\",\"$.revenue\",\"$.event_time\"]",
+  "max_error_number" = "100"
+)
+FROM KAFKA
+(
+  "kafka_broker_list" = "redpanda:9092",
+  "kafka_topic" = "ecommerce_orders_v1",
+  "property.group.id" = "doris_orders_group",
+  "property.kafka_default_offsets" = "OFFSET_BEGINNING"
 );
+
+
+
+docker-compose.yml -- New --
+version: '3.8'
+services:
+  doris-fe:
+    image: apache/doris:fe-4.0.0
+    container_name: doris-fe
+    ports:
+      - "8030:8030"
+      - "9030:9030"
+    environment:
+      - FE_SERVERS=fe1:doris-fe:9010
+      - FE_ID=1
+    volumes:
+      - doris_fe_meta:/opt/apache-doris/fe/doris-meta
+      - doris_fe_log:/opt/apache-doris/fe/log
+    networks:
+      - doris_net
+
+  doris-be:
+    image: apache/doris:be-4.0.0
+    container_name: doris-be
+    depends_on:
+      - doris-fe
+    environment:
+      - FE_SERVERS=fe1:doris-fe:9010
+      - BE_ADDR=172.18.0.4:9050   # BE’s own container IP
+    volumes:
+      - doris_be_data:/opt/apache-doris/be/storage
+      - doris_be_log:/opt/apache-doris/be/log
+    networks:
+      - doris_net
+
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: redpanda
+    command:
+      - redpanda
+      - start
+      - --smp 1
+      - --memory 1G
+      - --overprovisioned
+      - --node-id 0
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:9094
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:9094
+    ports:
+      - "9094:9094"
+      - "9644:9644"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    networks:
+      - doris_net
+
+networks:
+  doris_net:
+    driver: bridge
+
+volumes:
+  doris_fe_meta:
+  doris_fe_log:
+  doris_be_data:
+  doris_be_log:
+  redpanda_data:
+
+
+      ----- docker-compose.yml WORKING -----
+
+version: '3'
+
+services:
+  doris-fe:
+    image: apache/doris:fe-4.0.0
+    container_name: doris-fe
+    ports:
+      - "8030:8030"
+      - "9030:9030"
+    environment:
+      - FE_SERVERS=fe1:172.18.0.3:9010
+      - FE_ID=1
+      - PRIORITY_NETWORKS=172.18.0.0/16
+    volumes:
+      - doris_fe_meta:/opt/apache-doris/fe/doris-meta
+      - doris_fe_log:/opt/apache-doris/fe/log
+    networks:
+      doris_net:
+        ipv4_address: 172.18.0.3
+
+  doris-be:
+    image: apache/doris:be-4.0.0
+    container_name: doris-be
+    depends_on:
+      - doris-fe
+    environment:
+      - FE_SERVERS=fe1:172.18.0.3:9010
+      - BE_ADDR=172.18.0.4:9050
+      - PRIORITY_NETWORKS=172.18.0.0/16
+    volumes:
+      - doris_be_data:/opt/apache-doris/be/storage
+      - doris_be_log:/opt/apache-doris/be/log
+    networks:
+      doris_net:
+        ipv4_address: 172.18.0.4
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: redpanda
+    command:
+      - redpanda
+      - start
+      - --smp 1
+      - --memory 1G
+      - --overprovisioned
+      - --node-id 0
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:9094
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:9094
+    ports:
+      - "9094:9094"
+      - "9644:9644"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    networks:
+      - doris_net
+
+networks:
+  doris_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
+
+volumes:
+  doris_fe_meta:
+  doris_fe_log:
+  doris_be_data:
+  doris_be_log:
+  redpanda_data:
