@@ -12,24 +12,21 @@ import {
 
 export const createNewCoupon = async (req, res) => {
   try {
-    const { 
-      code, 
-      discountAmount, 
-      discountType, 
-      limit, 
-      expiresAt, 
-      allProducts, 
-      productIds 
-    } = req.body;
+    // const { 
+    //   code, 
+    //   discountAmount, 
+    //   discountType, 
+    //   limit, 
+    //   expiresAt, 
+    //   allProducts, 
+    //   productIds 
+    // } = req.body;
 
     const formattedData = {
-      code,
-      discountAmount: parseInt(discountAmount),
-      discountType : discountType ? discountType.toUpperCase() : 'PERCENTAGE',
-      limit: limit ? parseInt(limit) : null,
-      expiresAt,
-      allProducts,
-      productIds
+      ...req.body,
+      discountAmount: parseInt(req.body.discountAmount),
+      discountType : req.body.discountType?.toUpperCase(),
+      applyStrategy: req.body.applyStrategy?.toUpperCase()
     };
 
     const coupon = await createCoupon(formattedData);
@@ -62,16 +59,40 @@ export const getCouponByCodeController = async (req, res) => {
 }
 
 export const validateCoupon = async (req, res) => {
-  const { code, cartTotal, cartProductIds } = req.body;
   try {
-    const result = await validateCouponForCart(code, cartTotal, cartProductIds);
-    if (!result.isValid) {
-      return res.status(400).json({ message: result.error });
+    const { code, cartTotal, cartItems } = req.body;
+    const userId = req.user ? req.user.id : null; 
+
+    if (!code) {
+      return res.status(400).json({ isValid: false, message: "Coupon code is required" });
     }
-    return res.status(200).json({ coupon: result.coupon });
+    if (!cartItems || cartItems.length === 0) {
+      return res.status(400).json({ isValid: false, message: "Cart is empty" });
+    }
+
+    const result = await validateCouponForCart(
+      code, 
+      parseInt(cartTotal), 
+      cartItems, 
+      userId
+    );
+
+    if (!result.isValid) {
+      return res.status(400).json({ 
+        isValid: false, 
+        message: result.error 
+      });
+    }
+
+    return res.status(200).json({ 
+      isValid: true,
+      coupon: result.coupon,
+      calculatedDiscount: result.calculatedDiscount 
+    });
+
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Error Occurred" });
+    console.log("Validation Error:", error);
+    res.status(500).json({ message: "Server Error during validation" });
   }
 }
 

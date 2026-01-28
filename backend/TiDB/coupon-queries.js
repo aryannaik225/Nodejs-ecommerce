@@ -1,16 +1,42 @@
 import prisma from "../config/prisma.js";
 
-const createCoupon = async ({ code, discountAmount, discountType, limit, expiresAt, allProducts, productIds = [] }) => {
+const createCoupon = async (data) => {
+  const { 
+    code, 
+    discountAmount, 
+    discountType, 
+    limit, 
+    expiresAt, 
+    allProducts, 
+    productIds = [],
+    minCartAmount,
+    maxDiscountAmount,
+    startsAt,
+    userLimit,
+    newUsersOnly,
+    isStackable,
+    applyStrategy,
+    freeProductId
+  } = data;
+
   try {
     const coupon = await prisma.discountCode.create({
       data: {
         code,
-        discountAmount, 
-        discountType,
-        limit,
+        discountAmount: parseInt(discountAmount || 0), 
+        discountType: discountType.toUpperCase(),
+        limit: limit ? parseInt(limit) : null,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
+        startsAt: startsAt ? new Date(startsAt) : new Date(),
         allProducts: allProducts || false,
         isActive: true,
+        minCartAmount: minCartAmount ? parseInt(minCartAmount) : null,
+        maxDiscountAmount: maxDiscountAmount ? parseInt(maxDiscountAmount) : null,
+        userLimit: userLimit ? parseInt(userLimit) : null,
+        newUsersOnly: newUsersOnly || false,
+        isStackable: isStackable || false,
+        applyStrategy: applyStrategy || 'ALL_ITEMS',
+        freeProductId: freeProductId ? parseInt(freeProductId) : null,
         ProductDiscountCodeRelation: !allProducts && productIds.length > 0 ? {
           create: productIds.map(prodId => ({
             productId: parseInt(prodId)
@@ -151,25 +177,87 @@ const getCouponByCode = async (code) => {
   }
 }
 
-const validateCouponForCart = async (code, cartTotal, cartProductIds) => {
-  const coupon = await getCouponByCode(code)
-  const now = new Date()
+const validateCouponForCart = async (code, cartTotal, cartItems, userId) => {
+  const now = new Date();
 
-  if (!coupon) return { isValid: false, error: 'Invalid code' }
-  if (!coupon.isActive) return { isValid: false, error: 'Coupon disabled' };
+  const coupon = await prisma.discountCode.findUnique({
+    where: { code },
+    include: {
+      ProductDiscountCodeRelation: true,
+      _count: {
+        select: { orders: { where: { user_id: userId } } }
+      }
+    }
+  });
+
+  if (!coupon) return { isValid: false, error: 'Invalid coupon code' };
+  if (!coupon.isActive) return { isValid: false, error: 'This coupon is disabled' };
+  if (coupon.startsAt && coupon.startsAt > now) return { isValid: false, error: 'Coupon not yet active' };
   if (coupon.expiresAt && coupon.expiresAt < now) return { isValid: false, error: 'Coupon expired' };
-  if (coupon.limit !== null && coupon.uses >= coupon.limit) return { isValid: false, error: 'Usage limit reached' };
-
+  if (coupon.limit !== null && coupon.uses >= coupon.limit) return { isValid: false, error: 'Coupon usage limit reached' };
+  if (coupon.minCartAmount && cartTotal < coupon.minCartAmount) {
+    return { isValid: false, error: `Minimum cart value of $${coupon.minCartAmount} required` };
+  }
+  if (userId) {
+    if (coupon.userLimit !== null && coupon._count.orders >= coupon.userLimit) {
+      return { isValid: false, error: 'You have already used this coupon' };
+    }
+    if (coupon.newUsersOnly) {
+      const userOrderCount = await prisma.orders.count({ where: { user_id: userId } });
+      if (userOrderCount > 0) {
+        return { isValid: false, error: 'This coupon is for new customers only' };
+      }
+    }
+  }
+  let qualifyingItems = cartItems;
+  
   if (!coupon.allProducts) {
-    const validProductIds = coupon.ProductDiscountCodeRelation.map(rel => rel.productId);
-    const hasValidProduct = cartProductIds.some(pid => validProductIds.includes(parseInt(pid)));
+    const validProductIds = coupon.ProductDiscountCodeRelation.map(r => r.productId);
+    qualifyingItems = cartItems.filter(item => validProductIds.includes(item.product_id));
 
-    if (!hasValidProduct) {
-      return { isValid: false, error: 'Coupon not applicable to items in cart' };
+    if (qualifyingItems.length === 0) {
+      return { isValid: false, error: 'Coupon applies to specific products not in your cart' };
+    }
+  }
+  let discountAmount = 0;
+
+  if (coupon.discountType === 'FREE_SHIPPING') {
+    discountAmount = 0; 
+  } 
+  else if (coupon.discountType === 'FIXED') {
+    discountAmount = coupon.discountAmount;
+  } 
+  else if (coupon.discountType === 'PERCENTAGE') {
+    let targetAmount = 0;
+
+    if (coupon.applyStrategy === 'HIGHEST_ITEM') {
+      const highestItem = qualifyingItems.reduce((prev, current) => (prev.price > current.price) ? prev : current);
+      targetAmount = highestItem.price; 
+    } 
+    else if (coupon.applyStrategy === 'CHEAPEST_ITEM') {
+      const lowestItem = qualifyingItems.reduce((prev, current) => (prev.price < current.price) ? prev : current);
+      targetAmount = lowestItem.price;
+    } 
+    else {
+      targetAmount = qualifyingItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    }
+
+    discountAmount = (targetAmount * coupon.discountAmount) / 100;
+
+    if (coupon.maxDiscountAmount && discountAmount > coupon.maxDiscountAmount) {
+      discountAmount = coupon.maxDiscountAmount;
     }
   }
 
-  return { isValid: true, coupon };
+  if (discountAmount > cartTotal) {
+    discountAmount = cartTotal;
+  }
+
+  return { 
+    isValid: true, 
+    coupon: coupon,
+    calculatedDiscount: Math.floor(discountAmount)
+  };
 }
 
 

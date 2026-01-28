@@ -80,7 +80,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       setExpiredCoupons(data.coupons || []);
     } catch (error) {
-      console.error("Fetch expired coupons error:", error);
+      console.error("Fetch expired coupons error: ", error);
     } finally {
       setIsCouponLoading(false);
     } 

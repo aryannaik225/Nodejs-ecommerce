@@ -9,7 +9,7 @@ couponRouter.get('/', verifyToken, getCoupons);
 couponRouter.get('/active', getActiveCouponsController);
 couponRouter.get('/expired', getExpiredCouponsController);
 couponRouter.get('/:code', getCouponByCodeController);
-couponRouter.post('/validate/:id', validateCoupon);
+couponRouter.post('/validate', verifyToken, validateCoupon);
 couponRouter.put('/update/:id', verifyToken, updateCouponController);
 couponRouter.post('/increment-usage/:id', verifyToken, incrementCouponUsageController);
 couponRouter.delete('/delete/:id', verifyToken, deleteCouponController);
