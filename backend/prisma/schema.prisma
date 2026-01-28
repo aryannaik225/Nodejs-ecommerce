@@ -26,12 +26,11 @@ model products {
   description                 String                        @db.VarChar(255)
   price                       Int
   image                       String?                       @db.VarChar(15000)
+  rewardedByCoupons           DiscountCode[]                @relation("FreeProductReward")
   ProductDiscountCodeRelation ProductDiscountCodeRelation[]
   cart_items                  cart_items[]
   order_items                 order_items[]
   product_categories          product_categories[]
-
-  rewardedByCoupons           DiscountCode[]                @relation("FreeProductReward")
 }
 
 model products_backup {
@@ -102,51 +101,32 @@ model orders {
 model DiscountCode {
   id                          Int                           @id @default(autoincrement())
   code                        String                        @unique
-  
-  // Rule: Added Free Shippin
   discountAmount              Int
   discountType                DiscountCode_discountType
-
-  // Rule: Max cap for percentage discounts
   maxDiscountAmount           Int?
-  
-  // Rule: Minimum Amount in Cart
   minCartAmount               Int?
-
-  // Rule: Start Date (For Future Events)
   startsAt                    DateTime?                     @default(now())
   expiresAt                   DateTime?
-
-  // Rule: Global Usage Limit
   limit                       Int?
   uses                        Int                           @default(0)
-
-  // Rule: Limit per specific user
   userLimit                   Int?
-
-  // Rule: Only for first time buyers
   newUsersOnly                Boolean                       @default(false)
-
-  // Rule: Can stack with other coupons?
   isStackable                 Boolean                       @default(false)
-
-  // Rule: Apply to all items or just the highest priced one?
   applyStrategy               DiscountCode_applyStrategy    @default(ALL_ITEMS)
-
   isActive                    Boolean                       @default(true)
   allProducts                 Boolean                       @default(true)
   createdAt                   DateTime                      @default(now())
-
-  // Rule: Free Product (If this coupon is used, the product is added for free)
   freeProductId               Int?
+  description                 String?                       @db.VarChar(256)
   freeProduct                 products?                     @relation("FreeProductReward", fields: [freeProductId], references: [id])
-
   ProductDiscountCodeRelation ProductDiscountCodeRelation[]
   orders                      orders[]
+
+  @@index([freeProductId], map: "DiscountCode_freeProductId_fkey")
 }
 
 model ProductDiscountCodeRelation {
-  id             Int       @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   productId      Int
   discountCodeId Int
   DiscountCode   DiscountCode @relation(fields: [discountCodeId], references: [id], onDelete: Cascade)

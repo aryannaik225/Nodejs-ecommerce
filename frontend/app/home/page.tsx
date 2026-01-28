@@ -176,34 +176,32 @@ export default function Home() {
     }
   }, [toastMessage]);
 
-  const addToCart = async (productId: number) => {
+  const addToCart = (product: Product, quantity: number = 1) => {
     const token = localStorage.getItem("token");
     if (!token) {
       router.push("/auth");
       return;
     }
 
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart/add`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ productId }),
-        }
-      );
-
+    fetch(
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart/add`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId: product.id, quantity }),
+      }
+    ).then((res) => {
       if (res.ok) {
         setCartRefreshKey((prev) => prev + 1);
         setToastMessage("Product added to cart successfully");
-        setCartItemCount((count) => count + 1);
+        setCartItemCount((count) => count + quantity);
       }
-    } catch (error) {
-      console.error("Error adding to cart");
-    }
+    }).catch((error) => {
+      console.error("Error adding to cart", error);
+    });
   };
 
   const fetchProducts = async () => {
@@ -313,6 +311,7 @@ export default function Home() {
                       setCartItemCount={setCartItemCount}
                       variant="summary"
                       setAmount={setAmount}
+                      addToCart={addToCart}
                     />
                   </div>
                 </div>
@@ -344,6 +343,7 @@ export default function Home() {
                 setCartItemCount={setCartItemCount}
                 onCheckout={handleProceedToCheckout}
                 variant="drawer"
+                addToCart={addToCart}
               />
             </div>
           </div>
@@ -468,7 +468,7 @@ export default function Home() {
                   )}
 
                   <button
-                    onClick={() => addToCart(product.id)}
+                    onClick={() => addToCart(product)}
                     className="absolute bottom-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-gray-900 hover:text-white cursor-pointer"
                   >
                     <PlusIcon className="w-5 h-5" />
@@ -498,7 +498,7 @@ export default function Home() {
                   </p>
 
                   <button
-                    onClick={() => addToCart(product.id)}
+                    onClick={() => addToCart(product)}
                     className="w-full bg-gray-50 text-gray-900 hover:bg-gray-900 hover:text-white py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer"
                   >
                     Add to Cart

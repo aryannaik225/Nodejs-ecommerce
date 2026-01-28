@@ -32,6 +32,7 @@ export interface Coupon {
   allProducts: boolean;
   applyStrategy: 'ALL_ITEMS' | 'HIGHEST_ITEM' | 'CHEAPEST_ITEM';
   freeProductId: number | null;
+  description: string;
   ProductDiscountCodeRelation: {
     productId: number;
   }[];

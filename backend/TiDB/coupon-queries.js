@@ -131,7 +131,14 @@ const getActiveCoupons = async () => {
         { expiresAt: null },
         { expiresAt: { gt: now } }
       ]
-    }
+    },
+    include: {
+        ProductDiscountCodeRelation: {
+          include: {
+            products: { select: { title: true}}
+          }
+        }
+      }
   })
   return coupons.filter(c => c.limit === null || c.uses < c.limit)
 }
@@ -186,7 +193,8 @@ const validateCouponForCart = async (code, cartTotal, cartItems, userId) => {
       ProductDiscountCodeRelation: true,
       _count: {
         select: { orders: { where: { user_id: userId } } }
-      }
+      },
+      freeProduct: true
     }
   });
 
@@ -256,7 +264,8 @@ const validateCouponForCart = async (code, cartTotal, cartItems, userId) => {
   return { 
     isValid: true, 
     coupon: coupon,
-    calculatedDiscount: Math.floor(discountAmount)
+    calculatedDiscount: Math.floor(discountAmount),
+    freeProduct: coupon.freeProduct || null
   };
 }
 
