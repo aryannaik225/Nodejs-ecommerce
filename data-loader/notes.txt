@@ -3,7 +3,7 @@ to run the doris warehouse use this
 docker-compose up -d
 
 
-docker exec -it doris mysql -P 9030 -h 127.0.0.1 -u root
+docker exec -it doris-fe mysql -P 9030 -h 127.0.0.1 -u root
 
 
 use ecommerce_analytics;

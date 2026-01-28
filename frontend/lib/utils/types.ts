@@ -12,3 +12,17 @@ export interface Product {
   image: string | null;
   categories?: Category[];
 }
+
+export interface Coupon {
+  id: number;
+  code: string;
+  discountAmount: number;
+  discountType: 'PERCENTAGE' | 'FIXED'; 
+  limit: number | null;
+  uses: number; 
+  expiresAt: string | null;
+  allProducts: boolean;
+  ProductDiscountCodeRelation: {
+    productId: number;
+  }[];
+}

@@ -21,14 +21,15 @@ model cart_items {
 }
 
 model products {
-  id                 Int                  @id @default(autoincrement())
-  title              String               @db.VarChar(32)
-  description        String               @db.VarChar(255)
-  price              Int
-  image              String?              @db.VarChar(15000)
-  cart_items         cart_items[]
-  order_items        order_items[]
-  product_categories product_categories[]
+  id                          Int                           @id @default(autoincrement())
+  title                       String                        @db.VarChar(32)
+  description                 String                        @db.VarChar(255)
+  price                       Int
+  image                       String?                       @db.VarChar(15000)
+  ProductDiscountCodeRelation ProductDiscountCodeRelation[]
+  cart_items                  cart_items[]
+  order_items                 order_items[]
+  product_categories          product_categories[]
 }
 
 model products_backup {
@@ -58,10 +59,8 @@ model categories {
 model product_categories {
   product_id  Int
   category_id Int
-  // RENAMED fk_1 -> fk_cat_prod
-  products    products   @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_cat_prod")
-  // RENAMED fk_2 -> fk_cat_cat
   categories  categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cat_cat")
+  products    products   @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_cat_prod")
 
   @@id([product_id, category_id])
   @@index([category_id], map: "fk_cat_cat")
@@ -74,9 +73,7 @@ model order_items {
   product_title String   @db.VarChar(32)
   product_price Int
   quantity      Int
-  // RENAMED fk_1 -> fk_order_items_order
   orders        orders   @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_order_items_order")
-  // RENAMED fk_2 -> fk_order_items_product
   products      products @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_order_items_product")
 
   @@index([order_id], map: "fk_order_items_order")
@@ -91,11 +88,39 @@ model orders {
   payment_status orders_payment_status
   order_status   orders_order_status
   created_at     DateTime?             @default(now()) @db.Timestamp(0)
+  discountCodeId Int?
   order_items    order_items[]
-  // RENAMED fk_1 -> fk_orders_user
   users          users                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_orders_user")
+  DiscountCode   DiscountCode?         @relation(fields: [discountCodeId], references: [id], onDelete: Restrict)
 
   @@index([user_id], map: "fk_orders_user")
+  @@index([discountCodeId], map: "orders_discountCodeId_fkey")
+}
+
+model DiscountCode {
+  id                          Int                           @id @default(autoincrement())
+  code                        String                        @unique
+  discountAmount              Int
+  discountType                DiscountCode_discountType
+  uses                        Int                           @default(0)
+  isActive                    Boolean                       @default(true)
+  allProducts                 Boolean                       @default(false)
+  createdAt                   DateTime                      @default(now())
+  limit                       Int?
+  expiresAt                   DateTime?
+  ProductDiscountCodeRelation ProductDiscountCodeRelation[]
+  orders                      orders[]
+}
+
+model ProductDiscountCodeRelation {
+  id             Int       @id @default(autoincrement())
+  productId      Int
+  discountCodeId Int
+  DiscountCode   DiscountCode @relation(fields: [discountCodeId], references: [id], onDelete: Cascade)
+  products       products     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, discountCodeId], map: "ProductDiscountCodeRelation_prod_code_key")
+  @@index([discountCodeId], map: "ProductDiscountCodeRelation_discountCodeId_fkey")
 }
 
 enum orders_payment_status {
@@ -110,4 +135,9 @@ enum orders_order_status {
   shipped
   delivered
   cancelled
+}
+
+enum DiscountCode_discountType {
+  PERCENTAGE
+  FIXED
 }
