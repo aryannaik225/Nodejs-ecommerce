@@ -33,6 +33,7 @@ interface ExtendedFormData {
   code: string;
   discountAmount: string;
   discountType: "PERCENTAGE" | "FIXED" | "FREE_SHIPPING";
+  description: string;
   limit: number | null;
   userLimit: number | null;
   minCartAmount: number | null;
@@ -76,6 +77,7 @@ const Coupons = ({
     code: "",
     discountAmount: "",
     discountType: "PERCENTAGE",
+    description: "",
     limit: null,
     userLimit: null,
     minCartAmount: null,
@@ -121,6 +123,7 @@ const Coupons = ({
       code: "",
       discountAmount: "",
       discountType: "PERCENTAGE",
+      description: "",
       limit: null,
       userLimit: null,
       minCartAmount: null,
@@ -219,7 +222,7 @@ const Coupons = ({
         <thead>
           <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
             <th className="px-6 py-4 w-12">#</th>
-            <th className="px-6 py-4">Code</th>
+            <th className="px-6 py-4">Code & Description</th>
             <th className="px-6 py-4">Discount</th>
             <th className="px-6 py-4">Validity</th>
             <th className="px-6 py-4">Usage</th>
@@ -238,20 +241,40 @@ const Coupons = ({
               <td className="px-6 py-4 text-xs text-gray-400 font-mono">
                 {index + 1}
               </td>
+
               <td className="px-6 py-4">
-                <div className="flex flex-col">
+                <div className="flex flex-col gap-1.5">
                   <span
-                    className={`font-bold font-mono text-sm px-2.5 py-1 rounded-md w-fit ${type === "active" ? "bg-blue-50 text-blue-700 border border-blue-100" : "bg-gray-100 text-gray-500 border border-gray-200 line-through"}`}
+                    className={`font-bold font-mono text-sm px-2.5 py-1 rounded-md w-fit ${
+                      type === "active"
+                        ? "bg-blue-50 text-blue-700 border border-blue-100"
+                        : "bg-gray-100 text-gray-500 border border-gray-200 line-through"
+                    }`}
                   >
                     {coupon.code}
                   </span>
+
+                  {coupon.description ? (
+                    <p
+                      className="text-xs text-gray-500 max-w-64 line-clamp-2 leading-relaxed"
+                      title={coupon.description}
+                    >
+                      {coupon.description}
+                    </p>
+                  ) : (
+                    <span className="text-xs text-gray-300 italic">
+                      No description
+                    </span>
+                  )}
+
                   {coupon.newUsersOnly && (
-                    <span className="text-[10px] text-orange-500 font-medium mt-1">
+                    <span className="text-[10px] text-orange-600 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded w-fit font-medium">
                       New Users Only
                     </span>
                   )}
                 </div>
               </td>
+
               <td className="px-6 py-4">
                 <div className="font-medium text-gray-900">
                   {coupon.discountType === "FREE_SHIPPING" ? (
@@ -321,6 +344,7 @@ const Coupons = ({
                           code: coupon.code,
                           discountAmount: String(coupon.discountAmount),
                           discountType: coupon.discountType,
+                          description: coupon.description || "",
                           limit: coupon.limit,
                           userLimit: coupon.userLimit,
                           minCartAmount: coupon.minCartAmount,
@@ -524,6 +548,26 @@ const Coupons = ({
                           setFormData({
                             ...formData,
                             expiresAt: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <div className="flex w-full justify-between items-center">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                          Description (Optional) (Max 256 characters)
+                        </label>
+                        <span className="text-xs text-gray-400">
+                          {formData.description?.length || 0}/256
+                        </span>
+                      </div>
+                      <textarea
+                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 h-24 resize-none"
+                        value={formData.description || ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            description: e.target.value.slice(0, 256),
                           })
                         }
                       />

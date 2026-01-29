@@ -5,6 +5,7 @@ const createCoupon = async (data) => {
     code, 
     discountAmount, 
     discountType, 
+    description,
     limit, 
     expiresAt, 
     allProducts, 
@@ -25,6 +26,7 @@ const createCoupon = async (data) => {
         code,
         discountAmount: parseInt(discountAmount || 0), 
         discountType: discountType.toUpperCase(),
+        description: description || '',
         limit: limit ? parseInt(limit) : null,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         startsAt: startsAt ? new Date(startsAt) : new Date(),
@@ -58,7 +60,8 @@ const updateCoupon = async (id, data) => {
   const { 
     code, 
     discountAmount, 
-    discountType, 
+    discountType,
+    description, 
     limit, 
     expiresAt, 
     allProducts, 
@@ -92,6 +95,7 @@ const updateCoupon = async (id, data) => {
         limit: limit !== undefined ? (limit ? parseInt(limit) : null) : undefined,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         allProducts,
+        description,
         ProductDiscountCodeRelation: relationUpdate
       },
       include: {
