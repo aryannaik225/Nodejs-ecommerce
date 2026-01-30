@@ -1,6 +1,6 @@
 import { redis } from "./lib/redis.js";
 
-export const setRedisKey = async (key, value, ttl = 300) => {
+export const setRedisKey = async (key, value, ttl = 900) => {
   await redis.set(key, value, { ex: ttl });
 };
 

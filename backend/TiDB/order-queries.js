@@ -40,17 +40,13 @@ export const createOrderTransaction = async (userId, paymentMethod, paymentStatu
       data: orderItemsData
     });
 
-    await tx.cart_items.deleteMany({
-      where: { user_id: userId }
-    });
-
     return newOrder;
   });
 };
 
-export const updateOrderStatus = async (orderId, status) => {
+export const updateOrderStatus = async (orderId, order_status, payment_status) => {
   return await prisma.orders.update({
     where: { id: orderId },
-    data: { order_status: status }
+    data: { order_status: order_status, payment_status: payment_status }
   })
 }

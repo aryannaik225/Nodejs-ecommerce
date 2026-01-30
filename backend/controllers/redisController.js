@@ -5,7 +5,7 @@ import {
 } from "../redis/redis-queries.js";
 
 export const saveCheckoutState = async (orderId, data) => {
-  await setRedisKey(`checkout:order:${orderId}`, data, 300);
+  await setRedisKey(`checkout:order:${orderId}`, data, 900);
 };
 
 export const loadCheckoutState = async (orderId) => {

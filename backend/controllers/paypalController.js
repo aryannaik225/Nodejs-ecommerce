@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
 import { decrementStock, incrementStock } from "../TiDB/product-queries.js";
-import { createOrderTransaction } from "../TiDB/order-queries.js";
+import { createOrderTransaction, updateOrderStatus } from "../TiDB/order-queries.js";
 import { redis } from "../redis/lib/redis.js";
+import prisma from "../config/prisma.js";
 
 dotenv.config();
 
@@ -30,12 +31,16 @@ const generateAccessToken = async () => {
 };
 
 export const createOrder = async (req, res) => {
+  let order = null;
   try {
     if (!req.user || !req.user.id) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { amount, cartItems } = req.body;
+    const { amount } = req.body;
+    const cartItems = await prisma.cart_items.findMany({
+      where: { user_id: req.user.id }
+    })
     const userId = req.user.id;
 
     const existingOrderId = await redis.get(`checkout:user:${userId}`);
@@ -53,12 +58,24 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ error: "Cart is empty" });
     }
 
+    const decrementedItems = []
+
     for (const item of cartItems) {
-      const ok = await decrementStock(item.product_id, item.quantity);
+      const ok = await decrementStock(item.product_id, item.quantity)
       if (!ok) {
-        return res.status(409).json({ error: "Insufficient stock" });
+        for (const prev of decrementedItems) {
+          await incrementStock(prev.product_id, prev.quantity);
+        }
+        return res.status(409).json({ error: `Insufficient stock` });
       }
+      decrementedItems.push(item);
     }
+
+    order = await createOrderTransaction(
+      userId,
+      "PayPal",
+      "pending"
+    )
 
     const accessToken = await generateAccessToken();
     const response = await fetch(`${BASE_URL}/v2/checkout/orders`, {
@@ -86,6 +103,7 @@ export const createOrder = async (req, res) => {
       for (const item of cartItems) {
         await incrementStock(item.product_id, item.quantity);
       }
+      await updateOrderStatus(order.id, "cancelled", "failed");
       return res.status(response.status).json(data);
     }
 
@@ -93,25 +111,29 @@ export const createOrder = async (req, res) => {
       `checkout:order:${data.id}`,
       {
         userId,
+        dbOrderId: order.id,
         items: cartItems.map((item) => ({
           productId: item.product_id,
           quantity: item.quantity,
         })),
         createdAt: Date.now(),
       },
-      { ex: 300 }
+      { ex: 900 }
     );
 
     await redis.set(
       `checkout:user:${userId}`,
       data.id,
-      { ex: 300 }
+      { ex: 900 }
     )
 
     return res.status(200).json({ id: data.id });
 
   } catch (error) {
     console.error("Error creating PayPal order:", error);
+    if (order?.id) { 
+      await updateOrderStatus(order.id, "cancelled", "failed");
+    }
     return res.status(500).json({ error: "Failed to create order" });
   }
 };
@@ -157,17 +179,30 @@ export const captureOrder = async (req, res) => {
       });
     }
 
-    const order = await createOrderTransaction(
-      userId,
-      "PayPal",
-      "paid"
-    );
+    // const order = await createOrderTransaction(
+    //   userId,
+    //   "PayPal",
+    //   "pending"
+    // );
+
+    const redisData = await redis.get(`checkout:order:${orderID}`);
+
+    if (!redisData || !redisData.dbOrderId) {
+      await updateOrderStatus(orderID, "cancelled", "failed");
+      return res.status(400).json({ error: "Order data not found or expired" });
+    }
+
+    await updateOrderStatus(redisData.dbOrderId, "placed", "paid");
+
+    await prisma.cart_items.deleteMany({
+      where: { user_id: userId }
+    })
 
     await redis.del(`checkout:order:${orderID}`);
     await redis.del(`checkout:user:${userId}`);
     return res.status(200).json({
       message: "Payment & order successful",
-      orderId: order.id,
+      orderId: redisData.dbOrderId,
       paypalOrderId: orderID,
     });
 

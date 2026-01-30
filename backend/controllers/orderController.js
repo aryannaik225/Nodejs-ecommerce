@@ -27,7 +27,7 @@ export const createOrder = async (req, res) => {
   }
 };
 
-export const updateOrderStatus = async (req, res) => {
+export const updateStatus = async (req, res) => {
   const { orderId } = req.params;
   const { status } = req.body;
   try {
