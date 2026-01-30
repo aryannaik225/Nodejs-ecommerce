@@ -14,8 +14,8 @@ import {
 import { Product, Coupon } from "@/lib/utils/types";
 
 interface CartItem extends Product {
-  quantity: number;
-  product_id: number;
+  quantity: number,
+  product_id: number,
 }
 
 interface CartPageProps {
@@ -24,6 +24,8 @@ interface CartPageProps {
   variant?: "drawer" | "summary";
   setAmount?: React.Dispatch<React.SetStateAction<number>>;
   addToCart?: (product: Product, quantity?: number) => void;
+  cartItems: CartItem[];
+  setCartItems: React.Dispatch<React.SetStateAction<CartItem[]>>;
 }
 
 const Toast = ({
@@ -66,8 +68,9 @@ const CartPage = ({
   setAmount,
   variant = "drawer",
   addToCart,
+  cartItems,
+  setCartItems
 }: CartPageProps) => {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [couponCode, setCouponCode] = useState("");
@@ -183,6 +186,7 @@ const CartPage = ({
         title: "Free Gift",
         price: 0,
         image: "",
+        stock: 0,
         description: "A special free gift for you!",
       };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { loginAdminAction, verifyAdminTokenAction } from "@/lib/utils/actions"; 
+import { verifyAdminTokenAction } from "@/lib/utils/actions"; 
 import {
   Plus,
   Pencil,
@@ -41,6 +41,7 @@ const Inventory = ({
       description: "",
       price: "",
       image: "",
+      stock: "",
       categoryIds: [] as number[],
     });
   
@@ -92,12 +93,26 @@ const Inventory = ({
         : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/create`;
   
       const method = isEdit ? "PUT" : "POST";
+
+      let finalStockPayload;
+      
+      if (isEdit) {
+          const stockToAdd = formData.stock === "" ? 0 : Number(formData.stock);
+          const currentStock = editingProduct.stock || 0;
+          finalStockPayload = currentStock + stockToAdd;
+      } else {
+          finalStockPayload = Number(formData.stock);
+      }
   
       try {
         const res = await fetch(url, {
           method: method,
           headers: getAuthHeaders(),
-          body: JSON.stringify(formData),
+          body: JSON.stringify({
+            ...formData,
+            price: parseFloat(formData.price),
+            stock: finalStockPayload,
+          }),
         });
   
         if (!res.ok) throw new Error("Operation failed");
@@ -111,7 +126,7 @@ const Inventory = ({
   
     const openCreateModal = () => {
       setEditingProduct(null);
-      setFormData({ title: "", description: "", price: "", image: "", categoryIds: [] });
+      setFormData({ title: "", description: "", price: "", image: "", stock: "", categoryIds: [] });
       setIsModalOpen(true);
     };
   
@@ -126,6 +141,7 @@ const Inventory = ({
         description: product.description,
         price: product.price.toString(),
         image: product.image || "",
+        stock: "",
         categoryIds: existingIds,
       });
       setIsModalOpen(true);
@@ -211,8 +227,9 @@ const Inventory = ({
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
                     <th className="px-6 py-4 w-20">Image</th>
-                    <th className="px-6 py-4">Product Name</th>
-                    <th className="px-6 py-4">Categories</th>
+                    <th className="pl-6 py-4">Product Name</th>
+                    <th className="px-6 py-4 w-30">Stock</th>
+                    <th className="px-6 py-4 ">Categories</th>
                     <th className="px-6 py-4 w-30">Price</th>
                     <th className="px-6 py-4 w-25 text-right">Actions</th>
                   </tr>
@@ -236,12 +253,18 @@ const Inventory = ({
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-3">
+                      <td className="pl-6 py-3">
                         <div className="font-medium text-gray-900">
                           {product.title}
                         </div>
                         <div className="text-sm text-gray-500 truncate max-w-sm font-light mt-0.5">
                           {product.description}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-3">
+                        <div className="text-sm text-gray-900 font-medium">
+                          {product.stock !== undefined ? product.stock : 0}
                         </div>
                       </td>
                       
@@ -321,7 +344,8 @@ const Inventory = ({
 
             <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
               <div className="space-y-4">
-                <div>
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                  <div className="col-span-3">
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                     Product Title
                   </label>
@@ -335,6 +359,21 @@ const Inventory = ({
                       setFormData({ ...formData, title: e.target.value })
                     }
                   />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                    {editingProduct ? "Add Stock" : "Initial Stock"}
+                  </label>
+                  <input
+                    type="number"
+                    placeholder={editingProduct ? `Current: ${editingProduct.stock}` : "0"} 
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-all"
+                    value={formData.stock}
+                    onChange={(e) =>
+                      setFormData({ ...formData, stock: e.target.value })
+                    }
+                  />
+                </div>
                 </div>
 
                 <div>

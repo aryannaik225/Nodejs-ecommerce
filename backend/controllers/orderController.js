@@ -1,4 +1,4 @@
-import { createOrderTransaction } from "../TiDB/order-queries.js";
+import { createOrderTransaction, updateOrderStatus } from "../TiDB/order-queries.js";
 
 export const createOrder = async (req, res) => {
   const userId = req.user.id;
@@ -24,5 +24,20 @@ export const createOrder = async (req, res) => {
     }
 
     return res.status(500).json({ message: "Failed to place order" });
+  }
+};
+
+export const updateOrderStatus = async (req, res) => {
+  const { orderId } = req.params;
+  const { status } = req.body;
+  try {
+    const updatedOrder = await updateOrderStatus(orderId, status);
+    return res.status(200).json({
+      message: "Order status updated successfully",
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    return res.status(500).json({ message: "Failed to update order status" });
   }
 };

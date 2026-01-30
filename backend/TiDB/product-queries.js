@@ -60,7 +60,7 @@ export const findByID = async (id) => {
   }
 };
 
-export const create = async (title, description, price, image, categoryIds) => {
+export const create = async (title, description, price, image, categoryIds, stock = 0) => {
   try {
     const newProduct = await prisma.products.create({
       data: {
@@ -68,6 +68,7 @@ export const create = async (title, description, price, image, categoryIds) => {
         description: description,
         price: Number(price),
         image: image,
+        stock: Number(stock),
         product_categories: {
           create: categoryIds.map((catId) => ({
             categories: {
@@ -94,30 +95,39 @@ export const create = async (title, description, price, image, categoryIds) => {
   }
 };
 
-export const update = async (title, description, price, id, image, categoryIds) => {
+export const update = async (title, description, price, id, image, categoryIds, stock) => {
   try {
     const updatedProduct = await prisma.$transaction(async (tx) => {
+      const updateData = {
+        title: title,
+        description: description,
+        price: Number(price),
+        stock: Number(stock),
+        image: image,
+      };
+
+      if (stock !== undefined && stock !== null) {
+        updateData.stock = Number(stock);
+      }
+
       await tx.products.update({
         where: { id: Number(id) },
-        data: {
-          title: title,
-          description: description,
-          price: Number(price),
-          image: image,
-        },
+        data: updateData,
       });
 
-      await tx.product_categories.deleteMany({
-        where: { product_id: Number(id) },
-      });
+      if (categoryIds !== undefined) {
+          await tx.product_categories.deleteMany({
+            where: { product_id: Number(id) },
+          });
 
-      if (categoryIds && categoryIds.length > 0) {
-        await tx.product_categories.createMany({
-          data: categoryIds.map((catId) => ({
-            product_id: Number(id),
-            category_id: Number(catId),
-          })),
-        });
+          if (categoryIds.length > 0) {
+            await tx.product_categories.createMany({
+              data: categoryIds.map((catId) => ({
+                product_id: Number(id),
+                category_id: Number(catId),
+              })),
+            });
+          }
       }
 
       return await tx.products.findUnique({
@@ -151,6 +161,39 @@ export const deletee = async (id) => {
     return deletedProduct;
   } catch (error) {
     console.log("Error deleting record for id " + id + ". Error = ", error);
+    throw error;
+  }
+};
+
+export const incrementStock = async (id, quantity) => {
+  try {
+    return await prisma.products.update({
+      where: { id: Number(id) },
+      data: {
+        stock: { increment: Number(quantity) }
+      }
+    });
+  } catch (error) {
+    console.log("Error incrementing stock", error);
+    throw error;
+  }
+};
+
+export const decrementStock = async (id, quantity) => {
+  try {
+    const result = await prisma.products.updateMany({
+      where: {
+        id: Number(id),
+        stock: { gte: Number(quantity) }
+      },
+      data: {
+        stock: { decrement: Number(quantity) }
+      }
+    });
+    
+    return result.count > 0;
+  } catch (error) {
+    console.log("Error decrementing stock", error);
     throw error;
   }
 };

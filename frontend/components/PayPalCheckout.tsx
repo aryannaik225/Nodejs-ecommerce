@@ -3,15 +3,23 @@
 import { useState } from "react";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { CheckCircle2, XCircle, Loader2, RefreshCw } from "lucide-react";
+import { Product } from "@/lib/utils/types";
+
+interface CartItem extends Product {
+  quantity: number;
+  product_id: number;
+}
 
 interface PaypalCheckoutProps {
   amount: number;
   onSuccess: () => void;
+  cartItems: CartItem[];
 }
 
 export default function PaypalCheckout({
   amount,
   onSuccess,
+  cartItems,
 }: PaypalCheckoutProps) {
   const [status, setStatus] = useState<
     "idle" | "processing" | "success" | "error"
@@ -30,25 +38,27 @@ export default function PaypalCheckout({
     return {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-    }
-  }
+    };
+  };
 
   const handleCreateOrder = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/paypal/create-order`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ amount: amount }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/paypal/create-order`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            amount,
+            cartItems,
+          }),
+        },
+      );
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("BACKEND ERROR RESPONSE:", errorData);
-        throw new Error("Could not create order")
-      };
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Order creation failed");
 
-      const order = await res.json();
-      return order.id;
+      return data.id;
     } catch (error) {
       console.error(error);
       return "";
@@ -58,32 +68,20 @@ export default function PaypalCheckout({
   const handleOnApprove = async (data: any) => {
     setStatus("processing");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/paypal/capture-order`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ orderID: data.orderID }),
-      });
-
-      const orderData = await res.json();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/paypal/capture-order`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ orderID: data.orderID }),
+        },
+      );
 
       if (!res.ok) {
-        const errorDetail = orderData?.details?.[0];
-        const failureReason = errorDetail?.issue;
-
-        if (failureReason === "INSTRUMENT_DECLINED") {
-          setErrorMessage(
-            "Payment declined. Please check your balance or try a different card."
-          );
-        } else if (failureReason === "TRANSACTION_REFUSED") {
-          setErrorMessage("The transaction was refused by your bank.");
-        } else {
-          setErrorMessage(
-            errorDetail?.description || "Payment could not be processed."
-          );
-        }
         setStatus("error");
         return;
       }
+
       setStatus("success");
       onSuccess();
     } catch (error) {
@@ -109,7 +107,7 @@ export default function PaypalCheckout({
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center animate-in zoom-in-95 duration-300">
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-          <CheckCircle2 className="w-8 h-8 text-green-600" /> 
+          <CheckCircle2 className="w-8 h-8 text-green-600" />
         </div>
         <h3 className="text-xl font-bold text-gray-900 mb-2">
           Payment Successful!

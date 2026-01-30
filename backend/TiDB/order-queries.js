@@ -47,3 +47,10 @@ export const createOrderTransaction = async (userId, paymentMethod, paymentStatu
     return newOrder;
   });
 };
+
+export const updateOrderStatus = async (orderId, status) => {
+  return await prisma.orders.update({
+    where: { id: orderId },
+    data: { order_status: status }
+  })
+}

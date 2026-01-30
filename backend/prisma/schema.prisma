@@ -31,6 +31,7 @@ model products {
   cart_items                  cart_items[]
   order_items                 order_items[]
   product_categories          product_categories[]
+  stock                       Int                           @default(0)
 }
 
 model products_backup {

@@ -21,6 +21,11 @@ interface UserData {
   email: string;
 }
 
+interface CartItem extends Product {
+  quantity: number;
+  product_id: number;
+}
+
 const Toast = ({
   message,
   onClose,
@@ -146,17 +151,21 @@ export default function Home() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [amount, setAmount] = useState(0);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   const toggleCart = () => setIsCartOpen(!isCartOpen);
 
   const handleProceedToCheckout = () => {
     setIsCartOpen(false);
+
     setIsCheckoutOpen(true);
   };
 
   const handlePaymentSuccess = async () => {
     setCartItemCount(0);
     setToastMessage("Order placed successfully!");
+
+    localStorage.getItem("applied_coupons") ? localStorage.removeItem("applied_coupons") : null;
 
     setCartRefreshKey((prev) => prev + 1);
     setTimeout(() => {
@@ -292,6 +301,7 @@ export default function Home() {
                       <PaypalCheckout 
                         amount={amount} 
                         onSuccess={handlePaymentSuccess}
+                        cartItems={cartItems}
                       />
                     </div>
                   </div>
@@ -312,6 +322,8 @@ export default function Home() {
                       variant="summary"
                       setAmount={setAmount}
                       addToCart={addToCart}
+                      cartItems={cartItems}
+                      setCartItems={setCartItems}
                     />
                   </div>
                 </div>
@@ -344,6 +356,8 @@ export default function Home() {
                 onCheckout={handleProceedToCheckout}
                 variant="drawer"
                 addToCart={addToCart}
+                cartItems={cartItems}
+                setCartItems={setCartItems}
               />
             </div>
           </div>
