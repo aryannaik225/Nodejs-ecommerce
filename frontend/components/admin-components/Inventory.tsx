@@ -14,6 +14,7 @@ import {
   Check,
 } from "lucide-react";
 import { Category, Product } from "@/lib/utils/types";
+import { authFetch } from "@/lib/utils/apiClient";
 
 const Inventory = ({
   setIsAuthenticated,
@@ -72,11 +73,10 @@ const Inventory = ({
       if (!confirm("Are you sure you want to delete this product?")) return;
   
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/delete/${id}`,
+        const res = await authFetch(
+          `products/delete/${id}`,
           {
             method: "DELETE",
-            headers: getAuthHeaders(),
           }
         );
         if (res.ok) fetchProducts();
@@ -89,8 +89,8 @@ const Inventory = ({
       e.preventDefault();
       const isEdit = !!editingProduct;
       const url = isEdit
-        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/update/${editingProduct.id}`
-        : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/create`;
+        ? `products/update/${editingProduct.id}`
+        : `products/create`;
   
       const method = isEdit ? "PUT" : "POST";
 
@@ -105,9 +105,8 @@ const Inventory = ({
       }
   
       try {
-        const res = await fetch(url, {
+        const res = await authFetch(url, {
           method: method,
-          headers: getAuthHeaders(),
           body: JSON.stringify({
             ...formData,
             price: parseFloat(formData.price),

@@ -12,6 +12,7 @@ import {
   Check,
 } from "lucide-react";
 import { Product, Coupon } from "@/lib/utils/types";
+import { authFetch } from "@/lib/utils/apiClient";
 
 interface CartItem extends Product {
   quantity: number,
@@ -94,10 +95,9 @@ const CartPage = ({
 
   const fetchCart = async () => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart?t=${Date.now()}`,
-        { headers: getHeaders(), cache: "no-store" }
-      );
+      const res = await authFetch(`cart?t=${Date.now()}`, {
+        method: "GET",
+      });
 
       if (res.ok) {
         const data = await res.json();
@@ -145,10 +145,9 @@ const CartPage = ({
 
   const fetchAvailableCoupons = async () => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/coupon/active`,
-        { headers: getHeaders() }
-      );
+      const res = await authFetch("coupon/active", {
+        method: "GET",
+      });
       if (res.ok) {
         const data = await res.json();
         setAvailableCoupons(data.coupons || []);
@@ -234,11 +233,8 @@ const CartPage = ({
       if (!isRestoring) setIsCouponValidating(true);
 
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/coupon/validate`,
-          {
+        const res = await authFetch("coupon/validate", {
             method: "POST",
-            headers: getHeaders(),
             body: JSON.stringify({
               code: codeToValidate,
               cartTotal: currentSubtotal,
@@ -381,14 +377,10 @@ const CartPage = ({
     setCartItemCount((count) => count + update);
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart/update`,
-        {
-          method: "PUT",
-          headers: getHeaders(),
-          body: JSON.stringify({ productId, quantity: newQty }),
-        }
-      );
+      const res = await authFetch("cart/update", {
+        method: "PUT",
+        body: JSON.stringify({ productId, quantity: newQty }),
+      });
       if (newQty === 0 || !res.ok) {
         fetchCart();
       } else {
@@ -411,10 +403,7 @@ const CartPage = ({
 
   const removeItem = async (productId: number) => {
     try {
-      await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart/remove/${productId}`,
-        { method: "DELETE", headers: getHeaders() }
-      );
+      await authFetch(`cart/remove/${productId}`, { method: "DELETE" });
       fetchCart();
     } catch (error) {
       fetchCart();

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { CheckCircle2, XCircle, Loader2, RefreshCw } from "lucide-react";
 import { Product } from "@/lib/utils/types";
+import { authFetch } from "@/lib/utils/apiClient";
 
 interface CartItem extends Product {
   quantity: number;
@@ -43,17 +44,14 @@ export default function PaypalCheckout({
 
   const handleCreateOrder = async () => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/paypal/create-order`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            amount,
-            cartItems,
-          }),
-        },
-      );
+
+      const res = await authFetch("paypal/create-order", {
+        method: "POST",
+        body: JSON.stringify({
+          amount,
+          cartItems,
+        })
+      })
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Order creation failed");
@@ -68,14 +66,10 @@ export default function PaypalCheckout({
   const handleOnApprove = async (data: any) => {
     setStatus("processing");
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/paypal/capture-order`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ orderID: data.orderID }),
-        },
-      );
+      const res = await authFetch("paypal/capture-order", {
+        method: "POST",
+        body: JSON.stringify({ orderID: data.orderID }),
+      });
 
       if (!res.ok) {
         setStatus("error");

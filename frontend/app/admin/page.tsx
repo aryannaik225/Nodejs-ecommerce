@@ -6,6 +6,7 @@ import { Lock, Loader2, ShoppingBag, LogOut } from "lucide-react";
 import Inventory from "@/components/admin-components/Inventory";
 import Coupons from "@/components/admin-components/Coupons";
 import { Product, Category, Coupon } from "@/lib/utils/types";
+import { authFetch } from "@/lib/utils/apiClient";
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -34,9 +35,9 @@ export default function AdminDashboard() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories`,
-      );
+      const res = await authFetch("categories", {
+        method: "GET",
+      });
       const data = await res.json();
       setCategories(data.categories || []);
     } catch (error) {
@@ -46,9 +47,9 @@ export default function AdminDashboard() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/`,
-      );
+      const res = await authFetch("products", {
+        method: "GET",
+      });
       const data = await res.json();
       setProducts(data.products || []);
     } catch (error) {
@@ -60,9 +61,9 @@ export default function AdminDashboard() {
 
   const fetchActiveCoupons = async () => {
     try {
-      const res = await fetch (
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/coupon/active`,
-      );
+      const res = await authFetch("coupon/active", {
+        method: "GET",
+      });
       const data = await res.json();
       setCoupons(data.coupons || []);
     } catch (error) {
@@ -74,9 +75,9 @@ export default function AdminDashboard() {
 
   const fetchExpiredCoupons = async () => {
     try {
-      const res = await fetch (
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/coupon/expired`,
-      );
+      const res = await authFetch("coupon/expired", {
+        method: "GET",
+      });
       const data = await res.json();
       setExpiredCoupons(data.coupons || []);
     } catch (error) {

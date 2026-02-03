@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import authRouter from './authRoutes.js';
-import productRouter from './productRoutes.js';
 import cartRouter from './cartRoutes.js';
-import paypalRouter from './paypalRoutes.js';
-import orderRouter from './orderRoutes.js';
 import couponRouter from './couponRoutes.js';
+import orderRouter from './orderRoutes.js';
+import paypalRouter from './paypalRoutes.js';
+import productRouter from './productRoutes.js';
 import redisRouter from './redisRoutes.js';
 
 const appRouter = Router();

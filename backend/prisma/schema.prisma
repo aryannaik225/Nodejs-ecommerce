@@ -49,6 +49,15 @@ model users {
   password   String       @db.VarChar(255)
   cart_items cart_items[]
   orders     orders[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    Int
+  user      users    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
 }
 
 model categories {

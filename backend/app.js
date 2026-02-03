@@ -2,6 +2,7 @@ import express from 'express';
 import appRouter from './routes/index.js';
 import { config } from 'dotenv';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 
 // docker run --name sqldb -d -p 3307:3306 --rm -v mysqldata:/var/lib/mysql -e MYSQL_ROOT_PASSWORD='test' mysql:8.0
 // mysql -u root -ptest
@@ -11,10 +12,11 @@ const app = express();
 config();
 
 app.use(cors({
-  origin: '*',
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
 
+app.use(cookieParser());
 app.use(express.json());
 
 app.use((req, res, next) => {

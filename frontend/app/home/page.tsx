@@ -15,6 +15,7 @@ import {
 import { Product, Category } from "@/lib/utils/types";
 import CartPage from "@/components/CartPage";
 import PaypalCheckout from "@/components/PayPalCheckout";
+import { authFetch } from "@/lib/utils/apiClient";
 
 interface UserData {
   name: string;
@@ -192,14 +193,10 @@ export default function Home() {
       return;
     }
 
-    fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cart/add`,
+    authFetch(
+      "cart/add",
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ productId: product.id, quantity }),
       }
     ).then((res) => {
@@ -215,9 +212,9 @@ export default function Home() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/products/`
-      );
+      const res = await authFetch("products", {
+        method: "GET",
+      });
       const data = await res.json();
       setProducts(data.products || []);
     } catch (error) {
@@ -229,9 +226,9 @@ export default function Home() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/categories/`
-      );
+      const res = await authFetch("categories", {
+        method: "GET",
+      });
       const data = await res.json();
       setCategories(data.categories || []);
     } catch (error) {

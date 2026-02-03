@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { Eye, EyeOff, Lock, Mail, User, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { authFetch } from "@/lib/utils/apiClient";
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
 
   const [email, setEmail] = useState("");
@@ -37,14 +39,13 @@ const LoginPage: React.FC = () => {
       const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/${endpoint}`;
 
       const payload = isLogin
-        ? { email, password }
+        ? { email, password, rememberMe }
         : { name: fullName, email, password };
 
       const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -187,6 +188,24 @@ const LoginPage: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {isLogin && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-gray-900 focus:ring-gray-900 border-gray-300 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                  Remember me
+                </label>
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"

@@ -19,6 +19,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { Coupon, Product } from "@/lib/utils/types";
 import { motion, AnimatePresence } from "framer-motion";
+import { authFetch } from "@/lib/utils/apiClient";
 
 interface CouponsProps {
   isCouponLoading: boolean;
@@ -170,15 +171,14 @@ const Coupons = ({
     e.preventDefault();
     const isEditing = !!editingCoupon;
     const url = isEditing
-      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/coupon/update/${editingCoupon?.id}`
-      : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/coupon/create`;
+      ? `coupon/update/${editingCoupon?.id}`
+      : `coupon/create`;
 
     const method = isEditing ? "PUT" : "POST";
 
     try {
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method: method,
-        headers: getAuthHeaders(),
         body: JSON.stringify(formData),
       });
 
@@ -200,11 +200,10 @@ const Coupons = ({
       return;
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/coupon/delete/${id}`,
+      const res = await authFetch(
+        `coupon/delete/${id}`,
         {
           method: "DELETE",
-          headers: getAuthHeaders(),
         },
       );
 
