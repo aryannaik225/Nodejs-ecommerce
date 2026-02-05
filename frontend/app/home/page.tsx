@@ -16,6 +16,9 @@ import { Product, Category } from "@/lib/utils/types";
 import CartPage from "@/components/CartPage";
 import PaypalCheckout from "@/components/PayPalCheckout";
 import { authFetch } from "@/lib/utils/apiClient";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { encodeId } from "@/lib/utils/idHandler";
 
 interface UserData {
   name: string;
@@ -84,7 +87,7 @@ const UserMenu = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    localStorage.removeItem("admin_token")
+    localStorage.removeItem("admin_token");
     router.push("/auth");
   };
 
@@ -143,7 +146,7 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  
+
   const [loading, setLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartRefreshKey, setCartRefreshKey] = useState(0);
@@ -153,6 +156,11 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [amount, setAmount] = useState(0);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const ITEMS_PER_BATCH = 40;
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_BATCH);
 
   const toggleCart = () => setIsCartOpen(!isCartOpen);
 
@@ -166,13 +174,19 @@ export default function Home() {
     setCartItemCount(0);
     setToastMessage("Order placed successfully!");
 
-    localStorage.getItem("applied_coupons") ? localStorage.removeItem("applied_coupons") : null;
+    localStorage.getItem("applied_coupons")
+      ? localStorage.removeItem("applied_coupons")
+      : null;
 
     setCartRefreshKey((prev) => prev + 1);
     setTimeout(() => {
       setIsCheckoutOpen(false);
     }, 5000);
-};
+  };
+
+  useEffect(() => {
+    setVisibleCount(ITEMS_PER_BATCH);
+  }, [searchQuery, selectedCategory]);
 
   useEffect(() => {
     fetchProducts();
@@ -193,21 +207,20 @@ export default function Home() {
       return;
     }
 
-    authFetch(
-      "cart/add",
-      {
-        method: "POST",
-        body: JSON.stringify({ productId: product.id, quantity }),
-      }
-    ).then((res) => {
-      if (res.ok) {
-        setCartRefreshKey((prev) => prev + 1);
-        setToastMessage("Product added to cart successfully");
-        setCartItemCount((count) => count + quantity);
-      }
-    }).catch((error) => {
-      console.error("Error adding to cart", error);
-    });
+    authFetch("cart/add", {
+      method: "POST",
+      body: JSON.stringify({ productId: product.id, quantity }),
+    })
+      .then((res) => {
+        if (res.ok) {
+          setCartRefreshKey((prev) => prev + 1);
+          setToastMessage("Product added to cart successfully");
+          setCartItemCount((count) => count + quantity);
+        }
+      })
+      .catch((error) => {
+        console.error("Error adding to cart", error);
+      });
   };
 
   const fetchProducts = async () => {
@@ -238,17 +251,40 @@ export default function Home() {
 
   const filteredProducts = products.filter((product) => {
     const query = searchQuery.toLowerCase();
-    
-    const matchesSearch = 
+
+    const matchesSearch =
       product.title.toLowerCase().includes(query) ||
       product.description.toLowerCase().includes(query);
 
-    const matchesCategory = 
-      selectedCategory === null || 
-      (product.categories && product.categories.some(c => c.id === selectedCategory));
+    const matchesCategory =
+      selectedCategory === null ||
+      (product.categories &&
+        product.categories.some((c) => c.id === selectedCategory));
 
     return matchesSearch && matchesCategory;
   });
+
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredProducts.length;
+
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => prev + ITEMS_PER_BATCH);
+        }
+      },
+      {
+        rootMargin: "200px",
+      },
+    );
+
+    observer.observe(loadMoreRef.current);
+
+    return () => observer.disconnect();
+  }, [hasMore, ITEMS_PER_BATCH]);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-gray-900 selection:text-white">
@@ -258,7 +294,7 @@ export default function Home() {
 
       {isCheckoutOpen && (
         <div className="fixed inset-0 z-50 bg-gray-100 overflow-y-auto animate-in fade-in duration-200">
-           <div className="min-h-screen flex flex-col">
+          <div className="min-h-screen flex flex-col">
             <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
               <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -295,8 +331,8 @@ export default function Home() {
                     </p>
 
                     <div className="w-full">
-                      <PaypalCheckout 
-                        amount={amount} 
+                      <PaypalCheckout
+                        amount={amount}
                         onSuccess={handlePaymentSuccess}
                         cartItems={cartItems}
                       />
@@ -411,7 +447,8 @@ export default function Home() {
             Curated Quality.
           </h1>
           <p className="text-lg text-gray-500 max-w-2xl mx-auto mb-10">
-            Explore our collection of premium products designed to elevate your lifestyle.
+            Explore our collection of premium products designed to elevate your
+            lifestyle.
           </p>
 
           {categories.length > 0 && (
@@ -447,12 +484,14 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-6 pb-20">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-gray-900">
-            {selectedCategory 
-              ? categories.find(c => c.id === selectedCategory)?.name 
+            {selectedCategory
+              ? categories.find((c) => c.id === selectedCategory)?.name
               : "New Arrivals"}
           </h2>
           <span className="text-sm text-gray-500 font-medium">
-            {loading ? "..." : filteredProducts.length} Items
+            {loading
+              ? "..."
+              : `Showing ${Math.min(visibleCount, filteredProducts.length)} of ${filteredProducts.length} items`}
           </span>
         </div>
 
@@ -460,12 +499,15 @@ export default function Home() {
           {loading ? (
             [...Array(8)].map((_, i) => <ProductSkeleton key={i} />)
           ) : filteredProducts.length > 0 ? (
-            filteredProducts.map((product) => (
-              <div
+            visibleProducts.map((product) => (
+              <motion.div
                 key={product.id}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
                 className="group bg-white rounded-2xl p-4 border border-transparent hover:border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-col"
               >
-                <div className="relative aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 flex justify-center items-center">
+                <Link href={`/products/${encodeId(product.id)}`} className="relative cursor-pointer aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 flex justify-center items-center">
                   {product.image ? (
                     <img
                       src={product.image}
@@ -479,28 +521,37 @@ export default function Home() {
                   )}
 
                   <button
-                    onClick={() => addToCart(product)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      addToCart(product);
+                    }}
                     className="absolute bottom-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-gray-900 hover:text-white cursor-pointer"
                   >
                     <PlusIcon className="w-5 h-5" />
                   </button>
-                </div>
+                </Link>
 
                 <div className="flex-1 flex flex-col">
                   <div className="flex justify-between items-start mb-2">
+                    <Link href={`/products/${encodeId(product.id)}`} className="hover:underline decoration-blue-500">
                     <h3 className="text-base font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
                       {product.title}
                     </h3>
+                    </Link>
                     <span className="font-bold text-gray-900 text-sm">
                       ${product.price}
                     </span>
                   </div>
-                  
+
                   <div className="flex gap-1 mb-2 overflow-hidden flex-wrap">
                     {product.categories?.slice(0, 2).map((c) => (
-                       <span key={c.id} className="text-[10px] uppercase font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
-                         {c.name}
-                       </span>
+                      <span
+                        key={c.id}
+                        className="text-[10px] uppercase font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100"
+                      >
+                        {c.name}
+                      </span>
                     ))}
                   </div>
 
@@ -515,7 +566,7 @@ export default function Home() {
                     Add to Cart
                   </button>
                 </div>
-              </div>
+              </motion.div>
             ))
           ) : (
             <div className="col-span-full py-20 text-center">
@@ -526,16 +577,28 @@ export default function Home() {
                 No products found
               </h3>
               <p className="text-gray-500">
-                We couldn't find any items matching "{searchQuery}" {selectedCategory && "in this category"}.
+                We couldn't find any items matching "{searchQuery}"{" "}
+                {selectedCategory && "in this category"}.
               </p>
               {selectedCategory && (
-                 <button onClick={() => setSelectedCategory(null)} className="mt-4 text-sm text-blue-600 hover:underline font-medium">
-                   Clear Filters
-                 </button>
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className="mt-4 text-sm text-blue-600 hover:underline font-medium"
+                >
+                  Clear Filters
+                </button>
               )}
             </div>
           )}
         </div>
+        {hasMore && !loading && (
+          <div className="flex justify-center mt-14">
+            <button
+              className="px-8 py-3 rounded-full bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-all duration-200 shadow-md"
+              onClick={() => setVisibleCount((prev) => prev + ITEMS_PER_BATCH)}
+            >Show More</button>
+          </div>
+        )}
       </main>
     </div>
   );

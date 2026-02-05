@@ -6,7 +6,9 @@ import {
   deletee, 
   findAllCategories,
   incrementStock,
-  decrementStock
+  decrementStock,
+  selectProducts,
+  selectProductCategories
 } from "../TiDB/product-queries.js";
 
 export const getCategories = async (req, res) => {
@@ -111,6 +113,26 @@ export const manageStock = async (req, res) => {
       return res.status(400).json({ message: "Invalid action. Use 'add' or 'remove'" });
     }
 
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Error Occurred" });
+  }
+}
+
+export const selectProductss = async (req, res) => {
+  try {
+    const products = await selectProducts();
+    return res.status(200).json({ products });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Error Occurred" });
+  }
+}
+
+export const selectProductCategoriess = async (req, res) => {
+  try {
+    const productCategories = await selectProductCategories();
+    return res.status(200).json({ productCategories });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Error Occurred" });

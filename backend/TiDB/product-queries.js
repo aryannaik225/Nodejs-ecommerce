@@ -116,18 +116,18 @@ export const update = async (title, description, price, id, image, categoryIds, 
       });
 
       if (categoryIds !== undefined) {
-          await tx.product_categories.deleteMany({
-            where: { product_id: Number(id) },
-          });
+        await tx.product_categories.deleteMany({
+          where: { product_id: Number(id) },
+        });
 
-          if (categoryIds.length > 0) {
-            await tx.product_categories.createMany({
-              data: categoryIds.map((catId) => ({
-                product_id: Number(id),
-                category_id: Number(catId),
-              })),
-            });
-          }
+        if (categoryIds.length > 0) {
+          await tx.product_categories.createMany({
+            data: categoryIds.map((catId) => ({
+              product_id: Number(id),
+              category_id: Number(catId),
+            })),
+          });
+        }
       }
 
       return await tx.products.findUnique({
@@ -153,6 +153,10 @@ export const update = async (title, description, price, id, image, categoryIds, 
 
 export const deletee = async (id) => {
   try {
+    await prisma.product_categories.deleteMany({
+      where: { product_id: Number(id) },
+    })
+
     const deletedProduct = await prisma.products.delete({
       where: {
         id: Number(id),
@@ -190,10 +194,31 @@ export const decrementStock = async (id, quantity) => {
         stock: { decrement: Number(quantity) }
       }
     });
-    
+
     return result.count > 0;
   } catch (error) {
     console.log("Error decrementing stock", error);
+    throw error;
+  }
+};
+
+export const selectProducts = async() => {
+  try {
+    const products = await prisma.products.findMany();
+    return products.map((product) => ({
+
+    }));
+  } catch (error) {
+    console.log("Error fetching products:", error);
+    throw error;
+  }
+}
+
+export const selectProductCategories = async() => {
+  try {
+    return await prisma.product_categories.findMany();
+  } catch (error) {
+    console.log("Error fetching product categories:", error);
     throw error;
   }
 };

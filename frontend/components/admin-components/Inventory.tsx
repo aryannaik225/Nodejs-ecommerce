@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { verifyAdminTokenAction } from "@/lib/utils/actions"; 
+import { verifyAdminTokenAction } from "@/lib/utils/actions";
 import {
   Plus,
   Pencil,
@@ -33,141 +33,192 @@ const Inventory = ({
   categories: Category[];
   isInventoryLoading: boolean;
 }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [searchQuery, setSearchQuery] = useState("");
-  
-    const [formData, setFormData] = useState({
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const ITEMS_PER_PAGE = 40;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    price: "",
+    image: "",
+    stock: "",
+    categoryIds: [] as number[],
+  });
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const admin_token = localStorage.getItem("admin_token");
+
+      if (!admin_token) {
+        setIsAuthChecking(false);
+        return;
+      }
+
+      const result = await verifyAdminTokenAction(admin_token);
+
+      if (result.isValid) {
+        setIsAuthenticated(true);
+      } else {
+        localStorage.removeItem("admin_token");
+        setIsAuthenticated(false);
+      }
+      setIsAuthChecking(false);
+    };
+
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const selectedCategoryName = categories.find((c) => c.id === selectedCategory)?.name || "All Categories";
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [])
+
+  const handleSelect = (id: number | null) => {
+    setSelectedCategory(id);
+    setIsOpen(false);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+
+    try {
+      const res = await authFetch(`products/delete/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) fetchProducts();
+    } catch (error) {
+      alert("Failed to delete product");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const isEdit = !!editingProduct;
+    const url = isEdit
+      ? `products/update/${editingProduct.id}`
+      : `products/create`;
+
+    const method = isEdit ? "PUT" : "POST";
+
+    let finalStockPayload;
+
+    if (isEdit) {
+      const stockToAdd = formData.stock === "" ? 0 : Number(formData.stock);
+      const currentStock = editingProduct.stock || 0;
+      finalStockPayload = currentStock + stockToAdd;
+    } else {
+      finalStockPayload = Number(formData.stock);
+    }
+
+    try {
+      const res = await authFetch(url, {
+        method: method,
+        body: JSON.stringify({
+          ...formData,
+          price: parseFloat(formData.price),
+          stock: finalStockPayload,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Operation failed");
+
+      closeModal();
+      fetchProducts();
+    } catch (error) {
+      alert("Error saving product. Check if you are logged in.");
+    }
+  };
+
+  const openCreateModal = () => {
+    setEditingProduct(null);
+    setFormData({
       title: "",
       description: "",
       price: "",
       image: "",
       stock: "",
-      categoryIds: [] as number[],
+      categoryIds: [],
     });
-  
-    useEffect(() => {
-      const checkAuth = async () => {
-        const admin_token = localStorage.getItem("admin_token");
-        
-        if (!admin_token) {
-          setIsAuthChecking(false);
-          return;
-        }
-  
-        const result = await verifyAdminTokenAction(admin_token);
-  
-        if (result.isValid) {
-          setIsAuthenticated(true);
-        } else {
-          localStorage.removeItem("admin_token");
-          setIsAuthenticated(false);
-        }
-        setIsAuthChecking(false);
-      };
-  
-      checkAuth();
-    }, []);
-  
-    const handleDelete = async (id: number) => {
-      if (!confirm("Are you sure you want to delete this product?")) return;
-  
-      try {
-        const res = await authFetch(
-          `products/delete/${id}`,
-          {
-            method: "DELETE",
-          }
-        );
-        if (res.ok) fetchProducts();
-      } catch (error) {
-        alert("Failed to delete product");
-      }
-    };
-  
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      const isEdit = !!editingProduct;
-      const url = isEdit
-        ? `products/update/${editingProduct.id}`
-        : `products/create`;
-  
-      const method = isEdit ? "PUT" : "POST";
+    setIsModalOpen(true);
+  };
 
-      let finalStockPayload;
-      
-      if (isEdit) {
-          const stockToAdd = formData.stock === "" ? 0 : Number(formData.stock);
-          const currentStock = editingProduct.stock || 0;
-          finalStockPayload = currentStock + stockToAdd;
+  const openEditModal = (product: Product) => {
+    setEditingProduct(product);
+    const existingIds = product.categories
+      ? product.categories.map((c) => c.id)
+      : [];
+
+    setFormData({
+      title: product.title,
+      description: product.description,
+      price: product.price.toString(),
+      image: product.image || "",
+      stock: "",
+      categoryIds: existingIds,
+    });
+    setIsModalOpen(true);
+  };
+
+  const toggleCategory = (catId: number) => {
+    setFormData((prev) => {
+      const isSelected = prev.categoryIds.includes(catId);
+      if (isSelected) {
+        return {
+          ...prev,
+          categoryIds: prev.categoryIds.filter((id) => id !== catId),
+        };
       } else {
-          finalStockPayload = Number(formData.stock);
+        return { ...prev, categoryIds: [...prev.categoryIds, catId] };
       }
-  
-      try {
-        const res = await authFetch(url, {
-          method: method,
-          body: JSON.stringify({
-            ...formData,
-            price: parseFloat(formData.price),
-            stock: finalStockPayload,
-          }),
-        });
-  
-        if (!res.ok) throw new Error("Operation failed");
-  
-        closeModal();
-        fetchProducts();
-      } catch (error) {
-        alert("Error saving product. Check if you are logged in.");
-      }
-    };
-  
-    const openCreateModal = () => {
-      setEditingProduct(null);
-      setFormData({ title: "", description: "", price: "", image: "", stock: "", categoryIds: [] });
-      setIsModalOpen(true);
-    };
-  
-    const openEditModal = (product: Product) => {
-      setEditingProduct(product);
-      const existingIds = product.categories 
-        ? product.categories.map((c) => c.id) 
-        : [];
-  
-      setFormData({
-        title: product.title,
-        description: product.description,
-        price: product.price.toString(),
-        image: product.image || "",
-        stock: "",
-        categoryIds: existingIds,
-      });
-      setIsModalOpen(true);
-    };
-  
-    const toggleCategory = (catId: number) => {
-      setFormData((prev) => {
-        const isSelected = prev.categoryIds.includes(catId);
-        if (isSelected) {
-          return { ...prev, categoryIds: prev.categoryIds.filter((id) => id !== catId) };
-        } else {
-          return { ...prev, categoryIds: [...prev.categoryIds, catId] };
-        }
-      });
-    };
-  
-    const closeModal = () => setIsModalOpen(false);
-  
-    const filteredProducts = products.filter((p) =>
-      p.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    });
+  };
+
+  const closeModal = () => setIsModalOpen(false);
+
+  const filteredProducts = products.filter((p) => {
+    // p.title.toLowerCase().includes(searchQuery.toLowerCase()),
+    const query = searchQuery.toLowerCase();
+
+    const matchesSearch =
+      p.title.toLowerCase().includes(query) ||
+      p.description.toLowerCase().includes(query);
+
+    const matchesCategory =
+      selectedCategory === null ||
+      (p.categories && p.categories.some((cat) => cat.id === selectedCategory));
+
+    return matchesSearch && matchesCategory;
+  });
+
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-gray-900 selection:text-white">
-      
       <main className="max-w-7xl mx-auto px-6 py-8">
-        
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
@@ -178,6 +229,92 @@ const Inventory = ({
             </p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
+            {/* Dropdown for categories */}
+            <div className="relative w-full md:w-72" ref={dropdownRef}>
+              {/* --- THE TRIGGER (Looks like the input) --- */}
+              <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className={`
+          relative w-full cursor-pointer rounded-lg border bg-white py-2.5 pl-4 pr-10 text-left text-sm font-medium shadow-sm transition-all focus:outline-none focus:ring-2 
+          ${
+            isOpen
+              ? "border-indigo-500 ring-2 ring-indigo-500/20"
+              : "border-gray-200 hover:border-gray-300"
+          }
+        `}
+              >
+                <span
+                  className={`block truncate ${!selectedCategory ? "text-gray-500" : "text-gray-700"}`}
+                >
+                  {selectedCategoryName}
+                </span>
+
+                {/* Custom Chevron Icon with Rotation Animation */}
+                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                  <svg
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </span>
+              </button>
+
+              {/* --- THE DROPDOWN MENU (The List) --- */}
+              {isOpen && (
+                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-100 bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  {/* Option: All Categories */}
+                  <div
+                    onClick={() => handleSelect(null)}
+                    className={`
+              relative cursor-pointer select-none py-2.5 pl-4 pr-9 text-sm transition-colors hover:bg-indigo-50 hover:text-indigo-600
+              ${selectedCategory === null ? "bg-indigo-50 font-medium text-indigo-600" : "text-gray-700"}
+            `}
+                  >
+                    All Categories
+                  </div>
+
+                  {/* Map Categories */}
+                  {categories.map((category) => (
+                    <div
+                      key={category.id}
+                      onClick={() => handleSelect(category.id)}
+                      className={`
+                relative cursor-pointer select-none py-2.5 pl-4 pr-9 text-sm transition-colors hover:bg-indigo-50 hover:text-indigo-600
+                ${selectedCategory === category.id ? "bg-indigo-50 font-medium text-indigo-600" : "text-gray-700"}
+              `}
+                    >
+                      {category.name}
+
+                      {/* Optional: Checkmark icon for selected item */}
+                      {selectedCategory === category.id && (
+                        <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-indigo-600">
+                          <svg
+                            className="h-4 w-4"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="relative group flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-gray-600 transition-colors" />
               <input
@@ -197,9 +334,7 @@ const Inventory = ({
           </div>
         </div>
 
-        
         <div className="bg-white rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-gray-100 overflow-hidden">
-          
           {isInventoryLoading && (
             <div className="p-12 text-center text-gray-500 text-sm">
               Loading inventory...
@@ -234,7 +369,7 @@ const Inventory = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredProducts.map((product) => (
+                  {paginatedProducts.map((product) => (
                     <tr
                       key={product.id}
                       className="group hover:bg-gray-50/80 transition-colors duration-200"
@@ -266,20 +401,23 @@ const Inventory = ({
                           {product.stock !== undefined ? product.stock : 0}
                         </div>
                       </td>
-                      
+
                       <td className="px-6 py-3">
                         <div className="flex flex-wrap gap-1.5">
-                          {product.categories && product.categories.length > 0 ? (
+                          {product.categories &&
+                          product.categories.length > 0 ? (
                             product.categories.map((cat) => (
-                              <span 
-                                key={cat.id} 
+                              <span
+                                key={cat.id}
                                 className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
                               >
                                 {cat.name}
                               </span>
                             ))
                           ) : (
-                            <span className="text-xs text-gray-400 italic">None</span>
+                            <span className="text-xs text-gray-400 italic">
+                              None
+                            </span>
                           )}
                         </div>
                       </td>
@@ -312,22 +450,47 @@ const Inventory = ({
             </div>
           )}
 
-          <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 text-xs text-gray-500 flex justify-between items-center">
-            <span>Showing {filteredProducts.length} products</span>
-            <span>Admin View</span>
+          <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–
+              {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)}{" "}
+              of {filteredProducts.length} products
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-xs rounded-md border bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+              >
+                Prev
+              </button>
+
+              <span className="text-xs text-gray-600">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-xs rounded-md border bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </main>
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          
           <div
             className="absolute inset-0 bg-gray-900/20 backdrop-blur-sm animate-in fade-in duration-200"
             onClick={closeModal}
           />
 
-          
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100 flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
               <h3 className="font-semibold text-gray-900">
@@ -341,38 +504,45 @@ const Inventory = ({
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
+            <form
+              onSubmit={handleSubmit}
+              className="p-6 space-y-5 overflow-y-auto"
+            >
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
                   <div className="col-span-3">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    Product Title
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Wireless Headphones"
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-all"
-                    value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    {editingProduct ? "Add Stock" : "Initial Stock"}
-                  </label>
-                  <input
-                    type="number"
-                    placeholder={editingProduct ? `Current: ${editingProduct.stock}` : "0"} 
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-all"
-                    value={formData.stock}
-                    onChange={(e) =>
-                      setFormData({ ...formData, stock: e.target.value })
-                    }
-                  />
-                </div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                      Product Title
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Wireless Headphones"
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-all"
+                      value={formData.title}
+                      onChange={(e) =>
+                        setFormData({ ...formData, title: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                      {editingProduct ? "Add Stock" : "Initial Stock"}
+                    </label>
+                    <input
+                      type="number"
+                      placeholder={
+                        editingProduct
+                          ? `Current: ${editingProduct.stock}`
+                          : "0"
+                      }
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-all"
+                      value={formData.stock}
+                      onChange={(e) =>
+                        setFormData({ ...formData, stock: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -380,11 +550,15 @@ const Inventory = ({
                     Categories
                   </label>
                   {categories.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">No categories found.</p>
+                    <p className="text-sm text-gray-400 italic">
+                      No categories found.
+                    </p>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {categories.map((cat) => {
-                        const isSelected = formData.categoryIds.includes(cat.id);
+                        const isSelected = formData.categoryIds.includes(
+                          cat.id,
+                        );
                         return (
                           <button
                             key={cat.id}
@@ -397,7 +571,9 @@ const Inventory = ({
                             }`}
                           >
                             <span className="truncate">{cat.name}</span>
-                            {isSelected && <Check className="w-3 h-3 ml-1 shrink-0" />}
+                            {isSelected && (
+                              <Check className="w-3 h-3 ml-1 shrink-0" />
+                            )}
                           </button>
                         );
                       })}
@@ -468,7 +644,7 @@ const Inventory = ({
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Inventory
+export default Inventory;
