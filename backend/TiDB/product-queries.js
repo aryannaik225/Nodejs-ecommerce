@@ -44,18 +44,57 @@ export const findByID = async (id) => {
             categories: true,
           },
         },
+        reviews: {
+          include: {
+            users: {
+              select: { name: true }
+            }
+          },
+          orderBy: {
+            created_at: "desc"
+          }
+        }
       },
     });
 
     if (!product) return null;
 
+    const totalRating = product.reviews.reduce((acc, review) => acc + review.rating, 0)
+    const averageRating = product.reviews.length > 0 ? (totalRating / product.reviews.length).toFixed(1) : 0
+
     return {
       ...product,
       categories: product.product_categories.map((pc) => pc.categories),
       product_categories: undefined,
+      averageRating: averageRating,
+      reviewCount: product.reviews.length
     };
   } catch (error) {
     console.log("Error fetching record by id for " + id + ". Error = ", error);
+    throw error;
+  }
+};
+
+export const addReview = async (userId, productId, rating, comment) => {
+  try {
+    return await prisma.reviews.create({
+      data: {
+        user_id: Number(userId),
+        product_id: Number(productId),
+        rating: Number(rating),
+        comment: comment
+      },
+      include: {
+        users: {
+          select: { name: true }
+        }
+      }
+    });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      throw new Error("You have already reviewed this product.");
+    }
+    console.log("Error adding review:", error);
     throw error;
   }
 };

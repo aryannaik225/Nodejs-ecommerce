@@ -32,6 +32,7 @@ model products {
   order_items                 order_items[]
   product_categories          product_categories[]
   stock                       Int                           @default(0)
+  reviews reviews[]
 }
 
 model products_backup {
@@ -50,6 +51,7 @@ model users {
   cart_items cart_items[]
   orders     orders[]
   refreshTokens RefreshToken[]
+  reviews reviews[]
 }
 
 model RefreshToken {
@@ -58,6 +60,22 @@ model RefreshToken {
   userId    Int
   user      users    @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+}
+
+model reviews {
+  id Int @id @default(autoincrement())
+  rating Int // 1 to 5
+  comment String? @db.VarChar(500)
+  user_id Int
+  product_id Int
+  created_at DateTime @default(now())
+
+  users users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  products products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, product_id])
+  @@index([product_id])
+  @@index([user_id])
 }
 
 model categories {

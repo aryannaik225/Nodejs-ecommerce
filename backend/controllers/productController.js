@@ -1,14 +1,15 @@
-import { 
-  create, 
-  find, 
-  findByID, 
-  update, 
-  deletee, 
+import {
+  create,
+  find,
+  findByID,
+  update,
+  deletee,
   findAllCategories,
   incrementStock,
   decrementStock,
   selectProducts,
-  selectProductCategories
+  selectProductCategories,
+  addReview
 } from "../TiDB/product-queries.js";
 
 export const getCategories = async (req, res) => {
@@ -43,7 +44,7 @@ export const getProduct = async (req, res) => {
 }
 
 export const createProduct = async (req, res) => {
-  const { title, description, price, image, categoryIds=[], stock=0 } = req.body;
+  const { title, description, price, image, categoryIds = [], stock = 0 } = req.body;
 
   if (!title || !description || !price) {
     return res.status(403).json({ message: "Input parameters missing." })
@@ -97,18 +98,18 @@ export const manageStock = async (req, res) => {
     if (action === "add") {
       const updatedProduct = await incrementStock(productId, quantity);
       return res.status(200).json({ message: "Stock added", product: updatedProduct });
-    } 
-    
+    }
+
     else if (action === "remove") {
       const success = await decrementStock(productId, quantity);
-      
+
       if (success) {
         return res.status(200).json({ message: "Stock removed successfully" });
       } else {
         return res.status(409).json({ message: "Insufficient stock or product not found" });
       }
-    } 
-    
+    }
+
     else {
       return res.status(400).json({ message: "Invalid action. Use 'add' or 'remove'" });
     }
@@ -136,5 +137,25 @@ export const selectProductCategoriess = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Error Occurred" });
+  }
+}
+
+export const createProductReview = async (req, res) => {
+  const { id } = req.params
+  const { rating, comment } = req.body;
+  const userId = req.user.id;
+
+  if (!rating || rating < 1 || rating > 5) {
+    return res.status(400).json({ message: "Rating must be between 1 and 5" });
+  }
+
+  try {
+    const newReview = await addReview(userId, id, rating, comment);
+    return res.status(201).json({ message: "Review added", review: newReview });
+  } catch (error) {
+    if (error.message === "You have already reviewed this product.") {
+      return res.status(400).json({ message: error.message });
+    }
+    return res.status(500).json({ message: "Error adding review" });
   }
 }

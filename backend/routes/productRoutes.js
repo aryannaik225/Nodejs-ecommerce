@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createProduct, deleteProduct, getAllProducts, getProduct, updateProduct, getCategories, manageStock, selectProductCategoriess, selectProductss } from "../controllers/productController.js";
+import { createProduct, deleteProduct, getAllProducts, getProduct, updateProduct, getCategories, manageStock, selectProductCategoriess, selectProductss, createProductReview } from "../controllers/productController.js";
 import { verifyToken } from "../middlewares/authMiddleware.js";
 
 const productRouter = Router();
@@ -16,5 +16,7 @@ productRouter.post("/products/stock", verifyToken, manageStock);
 
 productRouter.get("/products/select-categories", selectProductCategoriess);
 productRouter.get("/products/select-products", selectProductss);
+
+productRouter.post("/products/:id/reviews", verifyToken, createProductReview);
 
 export default productRouter;
