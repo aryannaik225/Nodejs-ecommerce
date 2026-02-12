@@ -28,8 +28,6 @@ interface Review {
 
 interface ProductWithReviews extends Product {
   reviews: Review[];
-  averageRating: string | number;
-  reviewCount: number;
 }
 
 const Toast = ({

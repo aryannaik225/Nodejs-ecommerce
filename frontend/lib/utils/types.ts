@@ -12,6 +12,9 @@ export interface Product {
   image: string | null;
   stock: number;
   categories?: Category[];
+
+  averageRating?: number;
+  reviewCount?: number;
 }
 
 export interface Coupon {

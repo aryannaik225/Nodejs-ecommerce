@@ -11,26 +11,53 @@ export const findAllCategories = async () => {
 
 export const find = async () => {
   try {
-    const products = await prisma.products.findMany({
-      include: {
-        product_categories: {
-          include: {
-            categories: true,
+    const [products, ratings] = await Promise.all([
+      prisma.products.findMany({
+        include: {
+          product_categories: {
+            include: { categories: true },
           },
         },
-      },
-    });
+      }),
 
-    return products.map((product) => ({
-      ...product,
-      categories: product.product_categories.map((pc) => pc.categories),
-      product_categories: undefined,
-    }));
+      prisma.reviews.groupBy({
+        by: ["product_id"],
+        _avg: { rating: true },
+        _count: { rating: true },
+      }),
+    ]);
+
+    const ratingMap = new Map(
+      ratings.map((r) => [
+        r.product_id,
+        {
+          averageRating: r._avg.rating
+            ? Number(r._avg.rating).toFixed(1)
+            : 0,
+          reviewCount: r._count.rating,
+        },
+      ])
+    );
+
+    return products.map((product) => {
+      const rating = ratingMap.get(product.id) ?? {
+        averageRating: 0,
+        reviewCount: 0,
+      };
+
+      return {
+        ...product,
+        categories: product.product_categories.map((pc) => pc.categories),
+        product_categories: undefined,
+        ...rating,
+      };
+    });
   } catch (error) {
-    console.log("Error fetching products:", error);
+    console.error("Error fetching products:", error);
     throw error;
   }
 };
+
 
 export const findByID = async (id) => {
   try {

@@ -9,10 +9,10 @@ productRouter.get("/products/:id", getProduct);
 productRouter.get("/categories", getCategories);
 
 productRouter.post("/products/create", verifyToken, createProduct);
-productRouter.put("/products/update/:id", verifyToken, updateProduct);
-productRouter.delete("/products/delete/:id", verifyToken, deleteProduct);
+productRouter.put("/products/update/:id", updateProduct);
+productRouter.delete("/products/delete/:id", deleteProduct);
 
-productRouter.post("/products/stock", verifyToken, manageStock);
+productRouter.post("/products/stock", manageStock);
 
 productRouter.get("/products/select-categories", selectProductCategoriess);
 productRouter.get("/products/select-products", selectProductss);

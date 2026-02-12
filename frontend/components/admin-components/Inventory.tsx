@@ -94,6 +94,7 @@ const Inventory = ({
 
   const handleSelect = (id: number | null) => {
     setSelectedCategory(id);
+    setCurrentPage(1);
     setIsOpen(false);
   };
 

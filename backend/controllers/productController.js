@@ -64,6 +64,7 @@ export const updateProduct = async (req, res) => {
   const id = req.params.id;
 
   if (!title || !description || !price) {
+    console.log("Missing parameters: ", { title, description, price, id, image, categoryIds, stock });
     return res.status(403).json({ message: "Input parameters missing." })
   }
 

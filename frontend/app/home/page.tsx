@@ -16,6 +16,8 @@ import {
   ArrowDown,
   ChevronDown,
   ArrowRight,
+  Heart,
+  Star,
 } from "lucide-react";
 import { Product, Category } from "@/lib/utils/types";
 import CartPage from "@/components/CartPage";
@@ -24,6 +26,7 @@ import { authFetch } from "@/lib/utils/apiClient";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { encodeId } from "@/lib/utils/idHandler";
+import { set } from "mongoose";
 
 interface UserData {
   name: string;
@@ -146,15 +149,45 @@ const UserMenu = () => {
   );
 };
 
+const StarRating = ({
+  rating,
+  interactive = false,
+  setRating,
+}: {
+  rating: number;
+  interactive?: boolean;
+  setRating?: (r: number) => void;
+}) => {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          disabled={!interactive}
+          onClick={() => interactive && setRating && setRating(star)}
+          className={`${interactive ? "cursor-pointer hover:scale-110 transition-transform" : "cursor-default"}`}
+        >
+          <Star
+            className={`w-3.5 h-3.5 ${star <= rating ? "fill-yellow-400 text-yellow-400" : "fill-gray-100 text-gray-300"}`}
+          />
+        </button>
+      ))}
+    </div>
+  );
+};
+
 export default function Home() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
+  const [bestDealProducts, setBestDealProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const categoryRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(true);
+  const [bestDealsLoading, setBestDealsLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartRefreshKey, setCartRefreshKey] = useState(0);
   const [toastMessage, setToastMessage] = useState("");
@@ -163,36 +196,43 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [amount, setAmount] = useState(0);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [likedProducts, setLikedProducts] = useState<Set<number>>(new Set());
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const categoryCards = [
     {
+      id: 1,
       name: "Smartphones",
       image: "/smartphones-category-card.png",
       color: "#dedfd4",
     },
     {
+      id: 2,
       name: "Laptops",
       image: "/laptops-category-card.png",
       color: "#5b7454",
     },
     {
+      id: 30017,
       name: "Clothes",
       image: "/fashion-category-card.png",
       color: "#9e6151",
     },
     {
+      id: 30018,
       name: "Footwear",
       image: "/footwear-category-card.png",
       color: "#c5b6a4",
     },
     {
+      id: 30004,
       name: "Gaming",
       image: "/gaming-category-card.png",
       color: "#7a8a99",
     },
     {
+      id: 30008,
       name: "Home & Kitchen",
       image: "/home-kitchen-category-card.png",
       color: "#d4cfc4",
@@ -338,6 +378,12 @@ export default function Home() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const shuffled = [...products].sort(() => 0.5 - Math.random());
+    setBestDealProducts(shuffled.slice(0, 8));
+    setBestDealsLoading(false);
+  }, [products]);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-gray-900 selection:text-white">
@@ -630,15 +676,18 @@ export default function Home() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-6 py-20">
+      <main className="max-w-11/12 mx-auto px-6 py-20">
         <div className="w-full flex flex-col items-start gap-10">
           <span className="text-black font-semibold text-2xl">
             Shop Our Top Categories
           </span>
-          <div className="w-full flex gap-4 overflow-x-auto pb-8 px-4 no-scrollbar snap-x">
+          <div className="w-full flex justify-between overflow-x-auto pb-8 px-4 no-scrollbar snap-x">
             {categoryCards.map((card) => (
               <div
-                key={card.name}
+                key={card.id}
+                onClick={() => {
+                  setSelectedCategory(card.id);
+                }}
                 className="relative min-w-50 aspect-2/3 rounded-2xl overflow-hidden cursor-pointer group shrink-0 shadow-md hover:shadow-xl transition-all duration-300 snap-center"
               >
                 <img
@@ -660,7 +709,92 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mb-8">
+        <div className="w-full flex flex-col items-start gap-10 mt-20">
+          <span className="text-black font-semibold text-2xl">
+            Todays Best Deals For You!
+          </span>
+          <div className="w-full grid grid-flow-col auto-cols-[minmax(280px,1fr)] sm:auto-cols-[minmax(300px,1fr)] gap-8 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth custom-thin-scrollbar">
+            {bestDealsLoading
+              ? [...Array(4)].map((_, i) => <ProductSkeleton key={i} />)
+              : bestDealProducts.map((product) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                    className="snap-center group bg-white rounded-2xl p-4 border border-transparent hover:border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-col"
+                  >
+                    <Link
+                      href={`/products/${encodeId(product.id)}`}
+                      className="relative cursor-pointer aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 flex justify-center items-center"
+                    >
+                      {product.image ? (
+                        <img
+                          src={product.image}
+                          alt={product.title}
+                          className="max-h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 mix-blend-multiply"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                          No Image
+                        </div>
+                      )}
+
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          addToCart(product);
+                        }}
+                        className="absolute bottom-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-gray-900 hover:text-white cursor-pointer"
+                      >
+                        <PlusIcon className="w-5 h-5" />
+                      </button>
+                    </Link>
+
+                    <div className="flex-1 flex flex-col">
+                      <div className="flex justify-between items-start mb-2">
+                        <Link
+                          href={`/products/${encodeId(product.id)}`}
+                          className="hover:underline decoration-blue-500"
+                        >
+                          <h3 className="text-base font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                            {product.title}
+                          </h3>
+                        </Link>
+                        <span className="font-bold text-gray-900 text-sm">
+                          ${product.price}
+                        </span>
+                      </div>
+
+                      <div className="flex gap-1 mb-2 overflow-hidden flex-wrap">
+                        {product.categories?.slice(0, 2).map((c) => (
+                          <span
+                            key={c.id}
+                            className="text-[10px] uppercase font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100"
+                          >
+                            {c.name}
+                          </span>
+                        ))}
+                      </div>
+
+                      <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-1">
+                        {product.description}
+                      </p>
+
+                      <button
+                        onClick={() => addToCart(product)}
+                        className="w-full bg-gray-50 text-gray-900 hover:bg-gray-900 hover:text-white py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer"
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-8 mt-20">
           <h2 className="text-2xl font-bold text-gray-900">
             {selectedCategory
               ? categories.find((c) => c.id === selectedCategory)?.name
@@ -700,6 +834,28 @@ export default function Home() {
                       No Image
                     </div>
                   )}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setLikedProducts((prev) => {
+                        const newLiked = new Set(prev);
+                        if (newLiked.has(product.id)) {
+                          newLiked.delete(product.id);
+                        } else {
+                          newLiked.add(product.id);
+                        }
+                        return newLiked;
+                      });
+                    }}
+                    className="absolute top-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer"
+                  >
+                    <Heart className={`w-4 h-4 transition-colors ${
+                      likedProducts.has(product.id) 
+                        ? "fill-red-500 text-red-500" 
+                        : "text-gray-400"
+                    }`} />
+                  </button>
 
                   <button
                     onClick={(e) => {
@@ -738,10 +894,12 @@ export default function Home() {
                       </span>
                     ))}
                   </div>
-
-                  <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-1">
-                    {product.description}
-                  </p>
+                  <div className="flex items-center mb-2">
+                    <StarRating rating={product.averageRating || 0} />
+                    <span className="text-xs text-gray-500 ml-2">
+                      ({product.reviewCount || 0})
+                    </span>
+                  </div>
 
                   <button
                     onClick={() => addToCart(product)}
