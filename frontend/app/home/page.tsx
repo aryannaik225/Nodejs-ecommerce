@@ -1,62 +1,32 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ShoppingBag,
   ShoppingCart,
   Search,
-  X,
   Check,
   LogOut,
-  ArrowLeft,
   ShieldCheck,
   PhoneCall,
-  ArrowDownWideNarrow,
-  ArrowDown,
   ChevronDown,
   ArrowRight,
   Heart,
   Star,
 } from "lucide-react";
 import { Product, Category } from "@/lib/utils/types";
-import CartPage from "@/components/CartPage";
-import PaypalCheckout from "@/components/PayPalCheckout";
 import { authFetch } from "@/lib/utils/apiClient";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { encodeId } from "@/lib/utils/idHandler";
-import { set } from "mongoose";
+import { useCart } from "@/components/CartProvider";
+import Navbar from "@/components/NavBar";
 
 interface UserData {
   name: string;
   email: string;
 }
-
-interface CartItem extends Product {
-  quantity: number;
-  product_id: number;
-}
-
-const Toast = ({
-  message,
-  onClose,
-}: {
-  message: string;
-  onClose: () => void;
-}) => (
-  <div className="fixed bottom-6 right-6 z-60 animate-in slide-in-from-bottom-5 fade-in duration-300">
-    <div className="bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
-      <div className="bg-green-500 rounded-full p-1">
-        <Check className="w-3 h-3 text-white" />
-      </div>
-      <p className="text-sm font-medium">{message}</p>
-      <button onClick={onClose} className="ml-2 text-gray-400 hover:text-white">
-        <X className="w-4 h-4" />
-      </button>
-    </div>
-  </div>
-);
 
 const ProductSkeleton = () => (
   <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm animate-pulse">
@@ -67,7 +37,7 @@ const ProductSkeleton = () => (
   </div>
 );
 
-const UserMenu = () => {
+export const UserMenu = () => {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
@@ -178,26 +148,20 @@ const StarRating = ({
 };
 
 export default function Home() {
+  const { addToCart } = useCart()
   const router = useRouter();
+  const searchParams = useSearchParams()
+  const selectedCategory = searchParams.get("category")
+  ? Number(searchParams.get("category"))
+  : null;
+  const searchQuery = searchParams.get("q") || "";
+
   const [products, setProducts] = useState<Product[]>([]);
   const [bestDealProducts, setBestDealProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const categoryRef = useRef<HTMLDivElement>(null);
-
   const [loading, setLoading] = useState(true);
   const [bestDealsLoading, setBestDealsLoading] = useState(true);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartRefreshKey, setCartRefreshKey] = useState(0);
-  const [toastMessage, setToastMessage] = useState("");
-  const [cartItemCount, setCartItemCount] = useState(0);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [amount, setAmount] = useState(0);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [likedProducts, setLikedProducts] = useState<Set<number>>(new Set());
-
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const categoryCards = [
@@ -242,66 +206,9 @@ export default function Home() {
   const ITEMS_PER_BATCH = 40;
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_BATCH);
 
-  const toggleCart = () => setIsCartOpen(!isCartOpen);
-
-  const handleProceedToCheckout = () => {
-    setIsCartOpen(false);
-
-    setIsCheckoutOpen(true);
-  };
-
-  const handlePaymentSuccess = async () => {
-    setCartItemCount(0);
-    setToastMessage("Order placed successfully!");
-
-    localStorage.getItem("applied_coupons")
-      ? localStorage.removeItem("applied_coupons")
-      : null;
-
-    setCartRefreshKey((prev) => prev + 1);
-    setTimeout(() => {
-      setIsCheckoutOpen(false);
-    }, 5000);
-  };
-
   useEffect(() => {
     setVisibleCount(ITEMS_PER_BATCH);
   }, [searchQuery, selectedCategory]);
-
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(""), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
-
-  const addToCart = (product: Product, quantity: number = 1) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/auth");
-      return;
-    }
-
-    authFetch("cart/add", {
-      method: "POST",
-      body: JSON.stringify({ productId: product.id, quantity }),
-    })
-      .then((res) => {
-        if (res.ok) {
-          setCartRefreshKey((prev) => prev + 1);
-          setToastMessage("Product added to cart successfully");
-          setCartItemCount((count) => count + quantity);
-        }
-      })
-      .catch((error) => {
-        console.error("Error adding to cart", error);
-      });
-  };
 
   const fetchProducts = async () => {
     try {
@@ -328,6 +235,11 @@ export default function Home() {
       console.error("Failed to fetch categories", error);
     }
   };
+
+    useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, []);
 
   const filteredProducts = products.filter((product) => {
     const query = searchQuery.toLowerCase();
@@ -367,281 +279,19 @@ export default function Home() {
   }, [hasMore, ITEMS_PER_BATCH]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        categoryRef.current &&
-        !categoryRef.current.contains(event.target as Node)
-      ) {
-        setIsCategoryOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
     const shuffled = [...products].sort(() => 0.5 - Math.random());
     setBestDealProducts(shuffled.slice(0, 8));
     setBestDealsLoading(false);
   }, [products]);
 
+  const updateCategory = (id: number) => {
+    router.push(`/home/?category=${id}`)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-gray-900 selection:text-white">
-      {toastMessage && (
-        <Toast message={toastMessage} onClose={() => setToastMessage("")} />
-      )}
 
-      {isCheckoutOpen && (
-        <div className="fixed inset-0 z-50 bg-gray-100 overflow-y-auto animate-in fade-in duration-200">
-          <div className="min-h-screen flex flex-col">
-            <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-              <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="bg-gray-900 text-white p-1.5 rounded-lg">
-                    <ShoppingBag className="w-5 h-5" />
-                  </div>
-                  <span className="text-xl font-bold tracking-tight text-gray-900">
-                    Store. Checkout
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-                  <ShieldCheck className="w-4 h-4" /> Secure Payment
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1 max-w-7xl mx-auto w-full p-6 lg:p-10">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-                <div className="lg:col-span-7 space-y-6">
-                  <button
-                    onClick={() => setIsCheckoutOpen(false)}
-                    className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors mb-4 group"
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
-                    Return to shopping
-                  </button>
-
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">
-                      Payment Method
-                    </h2>
-                    <p className="text-gray-500 text-sm mb-6">
-                      Complete your purchase securely using PayPal.
-                    </p>
-
-                    <div className="w-full">
-                      <PaypalCheckout
-                        amount={amount}
-                        onSuccess={handlePaymentSuccess}
-                        cartItems={cartItems}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="lg:col-span-5 w-full">
-                  <div className="bg-gray-50 rounded-2xl border border-gray-200 p-6 sm:p-8 sticky top-24">
-                    <h2 className="text-lg font-bold text-gray-900 mb-6 flex justify-between items-center">
-                      <span>Order Summary</span>
-                      <span className="text-sm font-normal text-gray-500">
-                        {cartItemCount} Items
-                      </span>
-                    </h2>
-
-                    <CartPage
-                      key={cartRefreshKey}
-                      setCartItemCount={setCartItemCount}
-                      variant="summary"
-                      setAmount={setAmount}
-                      addToCart={addToCart}
-                      cartItems={cartItems}
-                      setCartItems={setCartItems}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isCartOpen && (
-        <div className="fixed inset-0 z-40 flex justify-end">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
-            onClick={toggleCart}
-          />
-          <div className="relative w-full max-w-md bg-white h-full shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300 flex flex-col">
-            <div className="p-4 flex justify-between items-center border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">Your Cart</h2>
-              <button
-                onClick={toggleCart}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <CartPage
-                key={cartRefreshKey}
-                setCartItemCount={setCartItemCount}
-                onCheckout={handleProceedToCheckout}
-                variant="drawer"
-                addToCart={addToCart}
-                cartItems={cartItems}
-                setCartItems={setCartItems}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      <nav className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 flex flex-col gap-0 w-full items-center">
-        <div className="bg-green-800 w-full py-2 flex justify-around items-center text-white text-xs font-regular tracking-wide">
-          <div className="flex items-center gap-2">
-            <PhoneCall className="w-4 h-4" />
-            <span className="">+001234567890</span>
-          </div>
-          <span className="">Get Free Delivery On Every Order</span>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4" />
-            <span className="">100% Secure Payment</span>
-          </div>
-        </div>
-
-        <div className="max-w-8xl w-full px-6 h-16 flex items-center justify-around relative">
-          <a href="/" className="flex items-center gap-2 shrink-0">
-            <div className="bg-gray-900 text-white p-1.5 rounded-lg relative">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-gray-900 hidden sm:block">
-              Store.
-            </span>
-          </a>
-
-          <div className="flex items-center text-sm gap-5 transition-colors">
-            <div className="relative shrink-0" ref={categoryRef}>
-              <motion.button
-                layout
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                className={`flex gap-2 items-center text-sm font-medium px-3 py-2 rounded-full justify-between relative z-20 ${
-                  isCategoryOpen || selectedCategory !== null
-                    ? "bg-gray-100 text-gray-900"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                }`}
-                style={{ minWidth: "140px", maxWidth: "200px" }}
-              >
-                <motion.span layout className="truncate">
-                  {selectedCategory
-                    ? categories.find((c) => c.id === selectedCategory)?.name
-                    : "Categories"}
-                </motion.span>
-
-                <ChevronDown
-                  className={`w-3 h-3 shrink-0 transition-transform duration-200 ${
-                    isCategoryOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </motion.button>
-
-              {isCategoryOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="p-2">
-                    <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                      Shop by
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setSelectedCategory(null);
-                        setIsCategoryOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between group transition-colors ${
-                        selectedCategory === null
-                          ? "bg-gray-900 text-white"
-                          : "text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      <span>All Products</span>
-                      {selectedCategory === null && (
-                        <Check className="w-4 h-4" />
-                      )}
-                    </button>
-
-                    <div className="h-px bg-gray-100 my-2 mx-2" />
-
-                    <div className="max-h-64 overflow-y-auto custom-scrollbar">
-                      {categories.map((category) => (
-                        <button
-                          key={category.id}
-                          onClick={() => {
-                            setSelectedCategory(category.id);
-                            setIsCategoryOpen(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between group transition-colors mb-1 ${
-                            selectedCategory === category.id
-                              ? "bg-blue-50 text-blue-700 font-medium"
-                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                          }`}
-                        >
-                          <span className="truncate">{category.name}</span>
-                          {selectedCategory === category.id && (
-                            <Check className="w-4 h-4 text-blue-600 shrink-0 ml-2" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 p-3 border-t border-gray-100">
-                    <button
-                      onClick={() => {
-                        const productsSection = document.querySelector("main");
-                        productsSection?.scrollIntoView({ behavior: "smooth" });
-                        setIsCategoryOpen(false);
-                      }}
-                      className="text-xs text-blue-600 hover:underline font-medium flex items-center gap-1"
-                    >
-                      Browse full catalog <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex-1 max-w-md relative hidden sm:block">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <Search className="w-4 h-4" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search for products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-gray-100 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all outline-none placeholder:text-gray-400 text-gray-900"
-              />
-            </div>
-            <div className="flex items-center gap-4 shrink-0">
-              <div className="h-4 w-px bg-gray-200 hidden sm:block"></div>
-              <button
-                onClick={toggleCart}
-                className="relative group p-2 text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                <span
-                  className={`absolute -top-1 -right-1 bg-red-500/80 text-white text-[10px] font-bold rounded-full px-1 aspect-square flex items-center justify-center shadow-lg group-hover:bg-red-500 transition-colors ${
-                    cartItemCount > 0 ? "opacity-100" : "opacity-0"
-                  }`}
-                >
-                  {cartItemCount}
-                </span>
-              </button>
-              <UserMenu />
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="relative w-full bg-[url('/home-page-banner.png')] bg-cover bg-center min-h-125 lg:aspect-3/1 flex items-center">
         <div className="absolute inset-0 bg-linear-to-r from-black/70 via-black/50 to-transparent" />
@@ -686,7 +336,7 @@ export default function Home() {
               <div
                 key={card.id}
                 onClick={() => {
-                  setSelectedCategory(card.id);
+                  updateCategory(card.id);
                 }}
                 className="relative min-w-50 aspect-2/3 rounded-2xl overflow-hidden cursor-pointer group shrink-0 shadow-md hover:shadow-xl transition-all duration-300 snap-center"
               >
@@ -924,7 +574,7 @@ export default function Home() {
               </p>
               {selectedCategory && (
                 <button
-                  onClick={() => setSelectedCategory(null)}
+                  onClick={() => router.push("/home")}
                   className="mt-4 text-sm text-blue-600 hover:underline font-medium"
                 >
                   Clear Filters

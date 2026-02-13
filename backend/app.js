@@ -1,5 +1,6 @@
 import express from 'express';
 import appRouter from './routes/index.js';
+import recommendationEngine from './services/recommendationEngine.js'
 import { config } from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -36,6 +37,8 @@ app.use((err, req, res, next) => {
   console.error("SERVER ERROR:", err);
   res.status(500).json({ message: "Internal Server Error", error: err.message });
 });
+
+recommendationEngine.init()
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

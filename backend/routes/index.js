@@ -6,6 +6,7 @@ import orderRouter from './orderRoutes.js';
 import paypalRouter from './paypalRoutes.js';
 import productRouter from './productRoutes.js';
 import redisRouter from './redisRoutes.js';
+import recommendationRouter from './recommendationRoutes.js';
 
 const appRouter = Router();
 
@@ -16,5 +17,6 @@ appRouter.use('/paypal', paypalRouter);
 appRouter.use('/orders', orderRouter);
 appRouter.use('/coupon', couponRouter)
 appRouter.use('/redis', redisRouter);
+appRouter.use('/recommendations', recommendationRouter);
 
 export default appRouter;

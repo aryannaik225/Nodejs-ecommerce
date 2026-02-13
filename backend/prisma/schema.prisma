@@ -26,13 +26,13 @@ model products {
   description                 String                        @db.VarChar(255)
   price                       Int
   image                       String?                       @db.VarChar(15000)
+  stock                       Int                           @default(0)
   rewardedByCoupons           DiscountCode[]                @relation("FreeProductReward")
   ProductDiscountCodeRelation ProductDiscountCodeRelation[]
   cart_items                  cart_items[]
   order_items                 order_items[]
   product_categories          product_categories[]
-  stock                       Int                           @default(0)
-  reviews reviews[]
+  reviews                     reviews[]
 }
 
 model products_backup {
@@ -44,34 +44,35 @@ model products_backup {
 }
 
 model users {
-  id         Int          @id @default(autoincrement())
-  name       String       @db.VarChar(255)
-  email      String       @unique(map: "email") @db.VarChar(255)
-  password   String       @db.VarChar(255)
-  cart_items cart_items[]
-  orders     orders[]
+  id            Int            @id @default(autoincrement())
+  name          String         @db.VarChar(255)
+  email         String         @unique(map: "email") @db.VarChar(255)
+  password      String         @db.VarChar(255)
   refreshTokens RefreshToken[]
-  reviews reviews[]
+  cart_items    cart_items[]
+  orders        orders[]
+  reviews       reviews[]
 }
 
 model RefreshToken {
   id        String   @id @default(uuid())
   token     String   @unique
   userId    Int
-  user      users    @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  user      users    @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "RefreshToken_userId_fkey")
 }
 
 model reviews {
-  id Int @id @default(autoincrement())
-  rating Int // 1 to 5
-  comment String? @db.VarChar(500)
-  user_id Int
+  id         Int      @id @default(autoincrement())
+  rating     Int
+  comment    String?  @db.VarChar(1000)
+  user_id    Int
   product_id Int
   created_at DateTime @default(now())
-
-  users users @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  products products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  products   products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, product_id])
   @@index([product_id])
@@ -162,6 +163,14 @@ model ProductDiscountCodeRelation {
 
   @@unique([productId, discountCodeId], map: "ProductDiscountCodeRelation_prod_code_key")
   @@index([discountCodeId], map: "ProductDiscountCodeRelation_discountCodeId_fkey")
+}
+
+model product_categories_backup {
+  product_id  Int
+  category_id Int
+
+  @@id([product_id, category_id])
+  @@index([category_id], map: "fk_cat_cat")
 }
 
 enum orders_payment_status {

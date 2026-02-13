@@ -14,9 +14,12 @@ import {
   AlertCircle,
   User,
 } from "lucide-react";
-import { Product } from "@/lib/utils/types";
+import { Product, Category } from "@/lib/utils/types";
 import { authFetch } from "@/lib/utils/apiClient";
+import { motion } from "framer-motion";
 import { decodeId, encodeId } from "@/lib/utils/idHandler";
+import { useCart } from "@/components/CartProvider";
+import Navbar from "@/components/NavBar";
 
 interface Review {
   id: number;
@@ -47,7 +50,6 @@ const Toast = ({
   </div>
 );
 
-// Helper Component for Stars
 const StarRating = ({
   rating,
   interactive = false,
@@ -87,7 +89,6 @@ export default function ProductDetailPage() {
   const [toastMessage, setToastMessage] = useState("");
   const [isAdding, setIsAdding] = useState(false);
 
-  // Review State
   const [userRating, setUserRating] = useState(0);
   const [userComment, setUserComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -213,17 +214,15 @@ export default function ProductDetailPage() {
         <Toast message={toastMessage} onClose={() => setToastMessage("")} />
       )}
 
-      <nav className="border-b border-gray-100 sticky top-0 bg-white/80 backdrop-blur-md z-30">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Store
-          </button>
-        </div>
-      </nav>
+      <Navbar />
+
+      <div className="border-b border-gray-100 sticky top-16 bg-white/80 backdrop-blur-md z-20">
+         <div className="max-w-7xl mx-auto px-6 h-12 flex items-center">
+           <button onClick={() => router.back()} className="...">
+             <ArrowLeft className="w-4 h-4" /> Back
+           </button>
+         </div>
+      </div>
 
       <main className="max-w-7xl mx-auto px-6 py-12 lg:py-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 mb-20">

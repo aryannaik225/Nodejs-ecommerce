@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "mysecretkey123";
 const REFRESH_SECRET = process.env.REFRESH_SECRET || "myrefreshsecretkey123";
 
 const generateTokens = (userId) => {
-  const accessToken = jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '60m' });
+  const accessToken = jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '8h' });
   const refreshToken = jwt.sign({ id: userId }, REFRESH_SECRET, { expiresIn: '30d' });
   return { accessToken, refreshToken };
 }
