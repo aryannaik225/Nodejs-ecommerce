@@ -9,7 +9,7 @@ class RecommendationEngine {
     this.products = [];
     this.productMap = new Map();
     this.processedDocs = [];
-    this.vectors = []; // NEW: Store pre-calculated vectors here
+    this.vectors = []; 
     this.isInitialized = false;
   }
 
@@ -27,6 +27,9 @@ class RecommendationEngine {
           include: {
             categories: true
           }
+        },
+        reviews: {
+            select: { rating: true }
         }
       }
     });
@@ -38,28 +41,37 @@ class RecommendationEngine {
 
     this.products = rawProducts;
 
-    // 1. Add documents to TF-IDF
     this.products.forEach((product, index) => {
       this.productMap.set(product.id, product);
+
+      const totalReviews = product.reviews.length;
+      let averageRating = 0;
+
+      if (totalReviews > 0) {
+          const sum = product.reviews.reduce((acc, curr) => acc + curr.rating, 0);
+          averageRating = (sum / totalReviews).toFixed(1);
+      }
+
+      product.rating = parseFloat(averageRating);
+      product.reviewCount = totalReviews;
+
+      delete product.reviews; 
 
       const categoryNames = product.product_categories
         .map(pc => pc.categories.name)
         .join(' ');
 
-      // Weighting: Title (3x), Category (2x)
       const content = `${product.title} ${product.title} ${categoryNames} ${categoryNames} ${product.description}`;
 
       this.tfidf.addDocument(content);
       
-      // Store metadata
       this.processedDocs.push({ 
           id: product.id, 
           index, 
-          category: categoryNames.toLowerCase() // Lowercase for easier matching
+          category: categoryNames.toLowerCase()
       });
     });
 
-    // 2. PRE-CALCULATE VECTORS (The Speed Fix)
     console.log("📊 Pre-calculating vectors for speed...");
     this.vectors = this.processedDocs.map(doc => this._calculateVector(doc.index));
 
@@ -79,7 +91,6 @@ class RecommendationEngine {
     return this.products.length;
   }
 
-  // Internal helper to generate vector (used only during init)
   _calculateVector(docIndex) {
     const terms = this.tfidf.listTerms(docIndex);
     const vec = {};
@@ -87,7 +98,6 @@ class RecommendationEngine {
     return vec;
   }
 
-  // Fast Cosine Math
   _cosineSimilarity(vecA, vecB) {
     let dotProduct = 0;
     let magA = 0;
@@ -116,7 +126,7 @@ class RecommendationEngine {
 
   recommend(targetProductId, limit = 10) {
     if (!this.isInitialized) return [];
-    // Performance Timer Start
+    
     const startTime = Date.now();
 
     const id = parseInt(targetProductId);
@@ -124,37 +134,32 @@ class RecommendationEngine {
 
     if (targetIndex === -1) return [];
 
-    // 1. GET PRE-CALCULATED DATA (Instant)
     const targetVector = this.vectors[targetIndex];
     const targetDoc = this.processedDocs[targetIndex]; 
     const targetProduct = this.products[targetIndex]; 
 
     const scores = [];
 
-    // 2. Loop through vectors (Fast)
     for (let i = 0; i < this.vectors.length; i++) {
         if (i === targetIndex) continue;
 
         const compareVector = this.vectors[i];
         const compareDoc = this.processedDocs[i];
 
-        // Math
         let similarity = this._cosineSimilarity(targetVector, compareVector);
 
-        // --- CATEGORY PENALTY (The T-Shirt Fix) ---
-        // Check if they share ANY category word (e.g. "smartphones", "clothing")
         const targetCats = targetDoc.category.split(' ');
         const hasSharedCategory = targetCats.some(word => 
             compareDoc.category.includes(word) && word.length > 2
         );
 
         if (hasSharedCategory) {
-            similarity = similarity * 1.5; // Boost Same Category
+            similarity = similarity * 1.5; 
         } else {
-            similarity = similarity * 0.1; // HEAVY PENALTY for Different Category
+            similarity = similarity * 0.1; 
         }
 
-        if (similarity > 0.01) { // Only keep if score is decent
+        if (similarity > 0.01) { 
             scores.push({
                 ...this.products[i],
                 score: similarity
@@ -164,7 +169,6 @@ class RecommendationEngine {
 
     scores.sort((a, b) => b.score - a.score);
 
-    // --- BUCKETING LOGIC ---
     const bucketA = scores.filter(item => 
        (item.title.includes(targetProduct.title) || targetProduct.title.includes(item.title)) 
        && item.score > 0.5
@@ -177,7 +181,6 @@ class RecommendationEngine {
     const halfLimit = Math.floor(limit / 2);
     let finalRecs = [...bucketA.slice(0, halfLimit), ...bucketB.slice(0, limit - halfLimit)];
 
-    // Fill remaining slots
     if (finalRecs.length < limit) {
         const existingIds = new Set(finalRecs.map(r => r.id));
         for (const item of scores) {
@@ -189,7 +192,6 @@ class RecommendationEngine {
         }
     }
 
-    // Performance Timer Log
     console.log(`⏱️ Recommendation calculation took ${Date.now() - startTime}ms`);
     
     return finalRecs;

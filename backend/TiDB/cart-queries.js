@@ -34,7 +34,7 @@ export const getCartByUserId = async (userId) => {
   }
 }
 
-export const addToCart = async (userId, productId) => {
+export const addToCart = async (userId, productId, quan=1) => {
   try {
     const item = await prisma.cart_items.upsert({
       where: {
@@ -44,12 +44,12 @@ export const addToCart = async (userId, productId) => {
         },
       },
       update: {
-        quantity: { increment: 1 },
+        quantity: { increment: quan },
       },
       create: {
         user_id: userId,
         product_id: productId,
-        quantity: 1,
+        quantity: quan,
       },
       include: {
         products: true,

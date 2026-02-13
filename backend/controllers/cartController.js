@@ -12,10 +12,11 @@ export const getCart = async (req, res) => {
 };
 
 export const addItemToCart = async (req, res) => {
-  const { productId } = req.body;
+  const { productId, quantity } = req.body;
   const userId = req.user.id;
+
   try {
-    await addToCart(userId, Number(productId));
+    await addToCart(userId, Number(productId), Number(quantity));
     return res.status(200).json({ message: "Added to cart" });
   } catch (error) {
     console.log(error);
