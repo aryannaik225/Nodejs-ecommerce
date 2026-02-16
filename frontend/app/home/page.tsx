@@ -148,16 +148,17 @@ const StarRating = ({
 };
 
 export default function Home() {
-  const { addToCart } = useCart()
+  const { addToCart } = useCart();
   const router = useRouter();
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
   const selectedCategory = searchParams.get("category")
-  ? Number(searchParams.get("category"))
-  : null;
+    ? Number(searchParams.get("category"))
+    : null;
   const searchQuery = searchParams.get("q") || "";
 
   const [products, setProducts] = useState<Product[]>([]);
   const [bestDealProducts, setBestDealProducts] = useState<Product[]>([]);
+  const [hasPersonalizedDeals, setHasPersonalizedDeals] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [bestDealsLoading, setBestDealsLoading] = useState(true);
@@ -236,7 +237,7 @@ export default function Home() {
     }
   };
 
-    useEffect(() => {
+  useEffect(() => {
     fetchProducts();
     fetchCategories();
   }, []);
@@ -278,19 +279,49 @@ export default function Home() {
     return () => observer.disconnect();
   }, [hasMore, ITEMS_PER_BATCH]);
 
+  // useEffect(() => {
+  //   const shuffled = [...products].sort(() => 0.5 - Math.random());
+  //   setBestDealProducts(shuffled.slice(0, 8));
+  //   setBestDealsLoading(false);
+  // }, [products]);
+
   useEffect(() => {
-    const shuffled = [...products].sort(() => 0.5 - Math.random());
-    setBestDealProducts(shuffled.slice(0, 8));
-    setBestDealsLoading(false);
-  }, [products]);
+    const fetchPersonalizedDeals = async () => {
+      try {
+        const res = await authFetch("recommendations/user", {
+          method: "GET",
+        });
+        const data = await res.json();
+
+        if (data.success && data.data && data.data.length > 0) {
+          setBestDealProducts(data.data);
+          setHasPersonalizedDeals(true);
+          setBestDealsLoading(false);
+        } else {
+        }
+      } catch (error) {
+        console.error("Failed to fetch personalized recommendations", error);
+      }
+    };
+
+    fetchPersonalizedDeals();
+  }, []);
+
+  useEffect(() => {
+    if (!hasPersonalizedDeals && products.length > 0) {
+      setBestDealProducts(
+        [...products].sort(() => 0.5 - Math.random()).slice(0, 8),
+      );
+      setBestDealsLoading(false);
+    }
+  }, [products, hasPersonalizedDeals]);
 
   const updateCategory = (id: number) => {
-    router.push(`/home/?category=${id}`)
-  }
+    router.push(`/home/?category=${id}`);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-gray-900 selection:text-white">
-
       <Navbar />
 
       <div className="relative w-full bg-[url('/home-page-banner.png')] bg-cover bg-center min-h-125 lg:aspect-3/1 flex items-center">
@@ -361,7 +392,7 @@ export default function Home() {
 
         <div className="w-full flex flex-col items-start gap-10 mt-20">
           <span className="text-black font-semibold text-2xl">
-            Todays Best Deals For You!
+            {hasPersonalizedDeals ? "Based on your past purchases" : "Today's Best Deals For You!"}
           </span>
           <div className="w-full grid grid-flow-col auto-cols-[minmax(280px,1fr)] sm:auto-cols-[minmax(300px,1fr)] gap-8 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth custom-thin-scrollbar">
             {bestDealsLoading
@@ -500,11 +531,13 @@ export default function Home() {
                     }}
                     className="absolute top-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer"
                   >
-                    <Heart className={`w-4 h-4 transition-colors ${
-                      likedProducts.has(product.id) 
-                        ? "fill-red-500 text-red-500" 
-                        : "text-gray-400"
-                    }`} />
+                    <Heart
+                      className={`w-4 h-4 transition-colors ${
+                        likedProducts.has(product.id)
+                          ? "fill-red-500 text-red-500"
+                          : "text-gray-400"
+                      }`}
+                    />
                   </button>
 
                   <button
