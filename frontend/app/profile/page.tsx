@@ -3,7 +3,7 @@
 import Navbar from "@/components/NavBar";
 import { ChevronRight, Heart, PackageOpen, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import OrderSection from "@/components/OrderSection";
 import WishList from "@/components/WishList";
 import ProfileSection from "@/components/ProfileSection";
@@ -63,7 +63,7 @@ const UserProfile = () => {
   );
 };
 
-export default function Home() {
+const ProfilePage = () => {
   const [selectedSection, setSelectedSection] = useState<
     "profile" | "orders" | "wishlist"
   >("wishlist");
@@ -125,3 +125,12 @@ const SidebarButton = ({ active, onClick, icon, label }: any) => (
     <ChevronRight className={`w-4 h-4 transition-transform ${active ? "text-white" : "text-gray-300 group-hover:text-gray-600 group-hover:translate-x-1"}`} />
   </button>
 );
+
+
+export default function Home() {
+  return (
+    <Suspense>
+      <ProfilePage />
+    </Suspense>
+  )
+}
