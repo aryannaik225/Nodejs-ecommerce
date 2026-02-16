@@ -12,12 +12,12 @@ import {
   PhoneCall,
   ChevronDown,
   Package,
+  UserRound,
 } from "lucide-react";
 import { Category } from "@/lib/utils/types";
 import { authFetch } from "@/lib/utils/apiClient";
 import { motion } from "framer-motion";
 import { useCart } from "@/components/CartProvider";
-import { encodeId } from "@/lib/utils/idHandler";
 
 interface UserData {
   name: string;
@@ -88,9 +88,9 @@ const UserMenu = () => {
             </p>
             <p className="text-xs text-gray-500 truncate">{user.email}</p>
           </div>
-          <button onClick={() => router.push(`/orders`)} className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-gray-50 flex items-center gap-2 transition-colors border-y border-gray-100">
-            <Package className="w-4 h-4" />
-            View Orders
+          <button onClick={() => router.push(`/profile`)} className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-gray-50 flex items-center gap-2 transition-colors border-y border-gray-100">
+            <UserRound className="w-4 h-4" />
+            My Profile
           </button>
           <button
             onClick={handleLogout}

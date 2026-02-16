@@ -66,7 +66,7 @@ const UserProfile = () => {
 export default function Home() {
   const [selectedSection, setSelectedSection] = useState<
     "profile" | "orders" | "wishlist"
-  >("profile");
+  >("wishlist");
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-200">
@@ -74,17 +74,16 @@ export default function Home() {
 
       <div className="mt-6 w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 mx-auto py-8 gap-8 px-4 sm:px-6">
         
-        {/* --- SIDEBAR (Sticky) --- */}
         <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 sticky top-24 self-start h-fit">
           <UserProfile />
 
           <nav className="flex flex-col gap-2 w-full">
-            <SidebarButton 
+            {/* <SidebarButton 
               active={selectedSection === "profile"} 
               onClick={() => setSelectedSection("profile")}
               icon={<UserRound className="w-4 h-4" />}
               label="Profile Settings"
-            />
+            /> */}
             <SidebarButton 
               active={selectedSection === "wishlist"} 
               onClick={() => setSelectedSection("wishlist")}
@@ -100,7 +99,6 @@ export default function Home() {
           </nav>
         </div>
 
-        {/* --- MAIN CONTENT --- */}
         <div className="col-span-1 lg:col-span-9 min-h-125">
           {selectedSection === "profile" && <ProfileSection />}
           {selectedSection === "orders" && <OrderSection />}
@@ -111,7 +109,6 @@ export default function Home() {
   );
 }
 
-// Helper for Sidebar Buttons
 const SidebarButton = ({ active, onClick, icon, label }: any) => (
   <button
     onClick={onClick}

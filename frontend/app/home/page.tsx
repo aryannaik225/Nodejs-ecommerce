@@ -4,13 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Search,
-  LogOut,
-  ArrowRight,
-  Heart,
-  Star,
-} from "lucide-react";
+import { Search, LogOut, ArrowRight, Heart, Star } from "lucide-react";
 import { Product, Category } from "@/lib/utils/types";
 import { authFetch } from "@/lib/utils/apiClient";
 import { motion } from "framer-motion";
@@ -207,6 +201,22 @@ function HomeContent() {
     setVisibleCount(ITEMS_PER_BATCH);
   }, [searchQuery, selectedCategory]);
 
+  const fetchWishlistIds = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await authFetch("wishlist/ids");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setLikedProducts(new Set(data.ids));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch wishlist ids", error);
+    }
+  };
+
   const fetchProducts = async () => {
     try {
       const res = await authFetch("products", {
@@ -236,7 +246,34 @@ function HomeContent() {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
+    fetchWishlistIds();
   }, []);
+
+  const toggleWishlist = async (productId: number) => {
+    setLikedProducts((prev) => {
+      const newLiked = new Set(prev);
+      if (newLiked.has(productId)) {
+        newLiked.delete(productId);
+      } else {
+        newLiked.add(productId);
+      }
+      return newLiked;
+    });
+
+    try {
+      const res = await authFetch("wishlist/toggle", {
+        method: "POST",
+        body: JSON.stringify({ productId }),
+      });
+
+      if (!res.ok) {
+        fetchWishlistIds();
+      }
+    } catch (error) {
+      console.error("Wishlist toggle failed", error);
+      fetchWishlistIds();
+    }
+  };
 
   const filteredProducts = products.filter((product) => {
     const query = searchQuery.toLowerCase();
@@ -288,7 +325,6 @@ function HomeContent() {
           setHasPersonalizedDeals(true);
           setBestDealsLoading(false);
         } else {
-          
         }
       } catch (error) {
         console.error("Failed to fetch personalized recommendations", error);
@@ -310,6 +346,31 @@ function HomeContent() {
   const updateCategory = (id: number) => {
     router.push(`/home/?category=${id}`);
   };
+
+  const HeartButton = ({
+    productId,
+    className,
+  }: {
+    productId: number;
+    className: string;
+  }) => (
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleWishlist(productId);
+      }}
+      className={className}
+    >
+      <Heart
+        className={`w-4 h-4 transition-colors ${
+          likedProducts.has(productId)
+            ? "fill-red-500 text-red-500"
+            : "text-gray-400"
+        }`}
+      />
+    </button>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-gray-900 selection:text-white">
@@ -383,7 +444,9 @@ function HomeContent() {
 
         <div className="w-full flex flex-col items-start gap-10 mt-20">
           <span className="text-black font-semibold text-2xl">
-            {hasPersonalizedDeals ? "Based on your past purchases" : "Today's Best Deals For You!"}
+            {hasPersonalizedDeals
+              ? "Based on your past purchases"
+              : "Today's Best Deals For You!"}
           </span>
           <div className="w-full grid grid-flow-col auto-cols-[minmax(280px,1fr)] sm:auto-cols-[minmax(300px,1fr)] gap-8 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth custom-thin-scrollbar">
             {bestDealsLoading
@@ -400,6 +463,10 @@ function HomeContent() {
                       href={`/products/${encodeId(product.id)}`}
                       className="relative cursor-pointer aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 flex justify-center items-center"
                     >
+                      <HeartButton
+                        productId={product.id}
+                        className="absolute top-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer z-10"
+                      />
                       {product.image ? (
                         <img
                           src={product.image}
@@ -506,30 +573,10 @@ function HomeContent() {
                       No Image
                     </div>
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setLikedProducts((prev) => {
-                        const newLiked = new Set(prev);
-                        if (newLiked.has(product.id)) {
-                          newLiked.delete(product.id);
-                        } else {
-                          newLiked.add(product.id);
-                        }
-                        return newLiked;
-                      });
-                    }}
-                    className="absolute top-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                  >
-                    <Heart
-                      className={`w-4 h-4 transition-colors ${
-                        likedProducts.has(product.id)
-                          ? "fill-red-500 text-red-500"
-                          : "text-gray-400"
-                      }`}
-                    />
-                  </button>
+                  <HeartButton 
+                    productId={product.id} 
+                    className="absolute top-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer z-10"
+                  />
 
                   <button
                     onClick={(e) => {
@@ -624,10 +671,16 @@ function HomeContent() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<div className="w-full h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="w-full h-screen flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
       <HomeContent />
     </Suspense>
-  )
+  );
 }
 
 const PlusIcon = ({ className }: { className?: string }) => (

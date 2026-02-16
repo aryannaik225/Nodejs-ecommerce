@@ -33,6 +33,7 @@ model products {
   order_items                 order_items[]
   product_categories          product_categories[]
   reviews                     reviews[]
+  wishlist_items              wishlist_items[]
 }
 
 model products_backup {
@@ -52,6 +53,7 @@ model users {
   cart_items    cart_items[]
   orders        orders[]
   reviews       reviews[]
+  wishlist_items wishlist_items[]
 }
 
 model RefreshToken {
@@ -171,6 +173,19 @@ model product_categories_backup {
 
   @@id([product_id, category_id])
   @@index([category_id], map: "fk_cat_cat")
+}
+
+model wishlist_items {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  product_id Int
+  created_at DateTime @default(now())
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products   products @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, product_id], map: "unique_wishlist_item")
+  @@index([user_id], map: "fk_wishlist_user")
+  @@index([product_id], map: "fk_wishlist_product")
 }
 
 enum orders_payment_status {
