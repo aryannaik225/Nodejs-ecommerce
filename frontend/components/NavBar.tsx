@@ -11,11 +11,13 @@ import {
   ShieldCheck,
   PhoneCall,
   ChevronDown,
+  Package,
 } from "lucide-react";
 import { Category } from "@/lib/utils/types";
 import { authFetch } from "@/lib/utils/apiClient";
 import { motion } from "framer-motion";
 import { useCart } from "@/components/CartProvider";
+import { encodeId } from "@/lib/utils/idHandler";
 
 interface UserData {
   name: string;
@@ -80,12 +82,16 @@ const UserMenu = () => {
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
-          <div className="px-4 py-3 border-b border-gray-50">
+          <div className="px-4 py-3 ">
             <p className="text-sm font-semibold text-gray-900 truncate">
               {user.name}
             </p>
             <p className="text-xs text-gray-500 truncate">{user.email}</p>
           </div>
+          <button onClick={() => router.push(`/orders`)} className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-gray-50 flex items-center gap-2 transition-colors border-y border-gray-100">
+            <Package className="w-4 h-4" />
+            View Orders
+          </button>
           <button
             onClick={handleLogout}
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"

@@ -1,4 +1,4 @@
-import { createOrderTransaction, updateOrderStatus } from "../TiDB/order-queries.js";
+import { createOrderTransaction, getOrdersWithStatusSimulation, updateOrderStatus } from "../TiDB/order-queries.js";
 
 export const createOrder = async (req, res) => {
   const userId = req.user.id;
@@ -41,3 +41,14 @@ export const updateStatus = async (req, res) => {
     return res.status(500).json({ message: "Failed to update order status" });
   }
 };
+
+export const getMyOrders = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const orders = await getOrdersWithStatusSimulation(userId);
+    return res.status(200).json({ success: true, orders });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch orders" });
+  }
+}

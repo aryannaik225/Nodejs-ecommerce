@@ -2,7 +2,7 @@ import prisma from "../config/prisma.js";
 
 export const createOrderTransaction = async (userId, paymentMethod, paymentStatus) => {
   return await prisma.$transaction(async (tx) => {
-    
+
     const cartItems = await tx.cart_items.findMany({
       where: { user_id: userId },
       include: {
@@ -48,5 +48,44 @@ export const updateOrderStatus = async (orderId, order_status, payment_status) =
   return await prisma.orders.update({
     where: { id: orderId },
     data: { order_status: order_status, payment_status: payment_status }
+  })
+}
+
+export const getOrdersWithStatusSimulation = async (userId) => {
+  const getMinutesAgo = (minutes) => new Date(Date.now() - minutes * 60 * 1000);
+
+  return await prisma.$transaction(async (tx) => {
+    await tx.orders.updateMany({
+      where: {
+        user_id: userId,
+        order_status: 'placed',
+        created_at: {
+          lte: getMinutesAgo(5)
+        }
+      },
+      data: { order_status: 'shipped' }
+    })
+
+    await tx.orders.updateMany({
+      where: {
+        user_id: userId,
+        order_status: 'shipped',
+        created_at: {
+          lte: getMinutesAgo(10)
+        }
+      },
+      data: {
+        order_status: 'delivered', payment_status: 'paid'
+      }
+    })
+
+    const orders = await tx.orders.findMany({
+      where: { user_id: userId },
+      include: {
+        order_items: true
+      },
+      orderBy: { created_at: 'desc' }
+    })
+    return orders;
   })
 }
