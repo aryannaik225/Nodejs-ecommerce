@@ -3,7 +3,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 let refreshPromise: Promise<any> | null = null;
 
 export const authFetch = async (endpoint: string, options: RequestInit = {}) => {
-  let token = localStorage.getItem("token");
+  let token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
   const url = `${BASE_URL}/api/${cleanEndpoint}`;
 
