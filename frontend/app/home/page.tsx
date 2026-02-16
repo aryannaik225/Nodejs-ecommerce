@@ -279,12 +279,6 @@ export default function Home() {
     return () => observer.disconnect();
   }, [hasMore, ITEMS_PER_BATCH]);
 
-  // useEffect(() => {
-  //   const shuffled = [...products].sort(() => 0.5 - Math.random());
-  //   setBestDealProducts(shuffled.slice(0, 8));
-  //   setBestDealsLoading(false);
-  // }, [products]);
-
   useEffect(() => {
     const fetchPersonalizedDeals = async () => {
       try {
@@ -298,6 +292,7 @@ export default function Home() {
           setHasPersonalizedDeals(true);
           setBestDealsLoading(false);
         } else {
+          
         }
       } catch (error) {
         console.error("Failed to fetch personalized recommendations", error);
