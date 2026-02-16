@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
@@ -143,7 +143,7 @@ const StarRating = ({
   );
 };
 
-export default function Home() {
+function HomeContent() {
   const { addToCart } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -620,6 +620,14 @@ export default function Home() {
       </main>
     </div>
   );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="w-full h-screen flex items-center justify-center">Loading...</div>}>
+      <HomeContent />
+    </Suspense>
+  )
 }
 
 const PlusIcon = ({ className }: { className?: string }) => (
