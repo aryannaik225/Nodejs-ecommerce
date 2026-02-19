@@ -1,4 +1,5 @@
-import { redis } from "../redis/lib/redis.js";
+// import { redis } from "../redis/lib/redis.js";
+import { getRedisKey, deleteRedisKey } from "../redis/redis-queries.js";
 import { incrementStock } from "../TiDB/product-queries.js";
 
 export const paypalWebhook = async (req, res) => {
@@ -23,7 +24,7 @@ export const paypalWebhook = async (req, res) => {
     }
 
     const redisKey = `checkout:order:${paypalOrderId}`;
-    const redisData = await redis.get(redisKey);
+    const redisData = await getRedisKey(redisKey);
 
     if (!redisData?.items) {
       return res.sendStatus(200);
@@ -33,7 +34,7 @@ export const paypalWebhook = async (req, res) => {
       await incrementStock(item.productId, item.quantity);
     }
 
-    await redis.del(redisKey);
+    await deleteRedisKey(redisKey);
 
     console.log(
       `Webhook rollback completed for order ${paypalOrderId}`
@@ -43,6 +44,10 @@ export const paypalWebhook = async (req, res) => {
 
   } catch (error) {
     console.error("PayPal Webhook Error:", error);
+    if (error.message === "REDIS_UNAVAILABLE") {
+      console.warn("Redis circuit open during webhook. Asking PayPal to retry later.");
+      return res.sendStatus(503); 
+    }
     return res.sendStatus(500);
   }
 };
