@@ -1,69 +1,86 @@
-import prisma from "../config/prisma.js";
+import { DBSQLClient } from '@databricks/sql';
+import dotenv from 'dotenv';
 
-export const getKpis = async (req, res) => {
+dotenv.config();
+
+const DATABRICKS_HOST = process.env.DATABRICKS_HOST;
+const DATABRICKS_PATH = process.env.DATABRICKS_PATH;
+const DATABRICKS_TOKEN = process.env.DATABRICKS_TOKEN;
+
+// Initialize a global client for the server
+const client = new DBSQLClient();
+
+export const getDashboardData = async (req, res) => {
+  let session;
+  
   try {
-    // Get Total Revenue & Total Orders
-    const [revenueAndOrders] = await prisma.$queryRaw`
-      SELECT 
-        CAST(COALESCE(SUM(total_amount), 0) AS UNSIGNED) AS totalRevenue,
-        CAST(COUNT(id) AS UNSIGNED) AS totalOrders
-      FROM orders 
-      WHERE payment_status = 'paid'
-    `;
+    // 1. Connect to Databricks
+    await client.connect({
+      host: DATABRICKS_HOST,
+      path: DATABRICKS_PATH,
+      token: DATABRICKS_TOKEN,
+    });
+    
+    session = await client.openSession();
+    await session.executeStatement(`USE SCHEMA ecommerce_analytics;`);
 
-    // (Users who added to cart vs Users who actually bought)
-    const [cartUsers] = await prisma.$queryRaw`
-      SELECT CAST(COUNT(DISTINCT user_id) AS UNSIGNED) AS count FROM cart_items
-    `;
-    const [orderUsers] = await prisma.$queryRaw`
-      SELECT CAST(COUNT(DISTINCT user_id) AS UNSIGNED) AS count FROM orders
-    `;
+    // Helper to execute and fetch
+    const fetchQuery = async (query) => {
+      const operation = await session.executeStatement(query);
+      const result = await operation.fetchAll();
+      await operation.close();
+      return result;
+    };
 
-    let abandonmentRate = 0;
-    const cUsers = Number(cartUsers.count);
-    const oUsers = Number(orderUsers.count);
+    // 2. Run our Analytical Queries in parallel for speed
+    console.log("📊 Fetching analytics from Databricks...");
 
-    if (cUsers > 0) {
-      // Formula: ((Cart Users - Order Users) / Cart Users) * 100
-      const diff = cUsers - oUsers;
-      abandonmentRate = Math.max(0, (diff / cUsers) * 100).toFixed(1);
-    }
+    const [kpis, orderStatuses, topProducts] = await Promise.all([
+      // Query A: High-level KPIs (Total Revenue & Order Count)
+      fetchQuery(`
+        SELECT 
+          COUNT(id) as total_orders,
+          SUM(total_amount) as total_revenue
+        FROM orders_bronze
+        WHERE payment_status != 'failed'
+      `),
 
-    res.json({
-      totalRevenue: Number(revenueAndOrders.totalRevenue),
-      totalOrders: Number(revenueAndOrders.totalOrders),
-      abandonmentRate: Number(abandonmentRate)
+      // Query B: Order Status Breakdown (For a Pie Chart)
+      fetchQuery(`
+        SELECT order_status, COUNT(*) as count 
+        FROM orders_bronze 
+        GROUP BY order_status
+      `),
+
+      // Query C: Top 5 Best-Selling Products (Joining items and products)
+      fetchQuery(`
+        SELECT 
+          p.title, 
+          SUM(oi.quantity) as total_sold,
+          SUM(oi.quantity * oi.product_price) as revenue_generated
+        FROM order_items_bronze oi
+        JOIN products_bronze p ON oi.product_id = p.id
+        GROUP BY p.title
+        ORDER BY total_sold DESC
+        LIMIT 5
+      `)
+    ]);
+
+    // 3. Send beautifully formatted data to the frontend
+    res.status(200).json({
+      success: true,
+      data: {
+        kpis: kpis[0], // Extract the single row of KPIs
+        orderStatuses,
+        topProducts
+      }
     });
 
   } catch (error) {
-    console.error("Error fetching KPIs:", error);
-    res.status(500).json({ error: "Failed to fetch analytics KPIs" });
-  }
-};
-
-export const getTopProducts = async (req, res) => {
-  try {
-    const topProducts = await prisma.$queryRaw`
-      SELECT 
-        product_title AS product_name,
-        CAST(SUM(quantity) AS UNSIGNED) AS units_sold,
-        CAST(SUM(quantity * product_price) AS UNSIGNED) AS revenue
-      FROM order_items
-      GROUP BY product_title
-      ORDER BY revenue DESC
-      LIMIT 5
-    `;
-
-    const formattedProducts = topProducts.map(product => ({
-      product_name: product.product_name,
-      units_sold: Number(product.units_sold),
-      revenue: Number(product.revenue)
-    }));
-
-    res.json(formattedProducts);
-
-  } catch (error) {
-    console.error("Error fetching top products:", error);
-    res.status(500).json({ error: "Failed to fetch top products" });
+    console.error("❌ Databricks Fetch Error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch dashboard data" });
+  } finally {
+    if (session) await session.close();
+    // We don't close the client here so it stays alive for the next API request
   }
 };

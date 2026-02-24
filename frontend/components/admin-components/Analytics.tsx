@@ -1,112 +1,173 @@
-// frontend/components/admin-components/Analytics.tsx
-import React, { useEffect, useState } from "react";
-import { authFetch } from "@/lib/utils/apiClient";
-import { TrendingUp, ShoppingCart, DollarSign, Package } from "lucide-react";
-// Assuming you use framer-motion based on your project stack
-import { motion } from "framer-motion";
+"use client";
 
-export default function Analytics({ getAuthHeaders }: { getAuthHeaders: () => any }) {
-  const [stats, setStats] = useState({
-    totalRevenue: 0,
-    totalOrders: 0,
-    abandonmentRate: 0,
-  });
-  const [topProducts, setTopProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+import { authFetch } from '@/lib/utils/apiClient';
+import { useEffect, useState } from 'react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  PieChart, Pie, Cell, Legend 
+} from 'recharts';
+import { DollarSign, ShoppingBag, TrendingUp, Package, Loader2 } from 'lucide-react';
+
+interface AnalyticsData {
+  kpis: { total_orders: number; total_revenue: number };
+  orderStatuses: { order_status: string; count: number }[];
+  topProducts: { title: string; total_sold: number; revenue_generated: number }[];
+}
+
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+export default function Analytics({ getAuthHeaders }: { getAuthHeaders: () => Record<string, string> }) {
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchAnalytics();
+    const fetchDashboardData = async () => {
+      try {
+        const res = await authFetch('/analytics/dashboard', {
+          method: 'GET',
+          headers: getAuthHeaders()
+        });
+        const json = await res.json();
+        
+        if (json.success) {
+          setData(json.data);
+        } else {
+          setError(json.message);
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setError("Failed to connect to the analytics server.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
   }, []);
 
-  const fetchAnalytics = async () => {
-    try {
-      // These would hit the new Express API routes you built earlier
-      const [kpiRes, productsRes] = await Promise.all([
-        authFetch("analytics/kpis", { method: "GET", headers: getAuthHeaders() }),
-        authFetch("analytics/products/top", { method: "GET", headers: getAuthHeaders() })
-      ]);
-
-      const kpiData = await kpiRes.json();
-      const productsData = await productsRes.json();
-
-      setStats({
-        totalRevenue: kpiData.totalRevenue || 0,
-        totalOrders: kpiData.totalOrders || 0,
-        // Assuming your backend calculates this based on cart_items vs orders
-        abandonmentRate: kpiData.abandonmentRate || 0, 
-      });
-      setTopProducts(productsData || []);
-    } catch (error) {
-      console.error("Failed to fetch analytics:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <div className="flex h-[70vh] items-center justify-center flex-col gap-4">
+        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+        <p className="text-lg font-medium text-slate-600">Querying Databricks Lakehouse...</p>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Store Analytics</h1>
+  if (error || !data) {
+    return (
+      <div className="p-6 m-4 bg-red-50 border border-red-200 rounded-xl text-red-600 font-medium">
+        ⚠️ Analytics Error: {error}
+      </div>
+    );
+  }
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {[
-          { title: "Total Revenue", value: `$${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: "text-green-600", bg: "bg-green-100" },
-          { title: "Total Orders", value: stats.totalOrders.toLocaleString(), icon: ShoppingCart, color: "text-blue-600", bg: "bg-blue-100" },
-          { title: "Cart Abandonment", value: `${stats.abandonmentRate}%`, icon: TrendingUp, color: "text-red-600", bg: "bg-red-100" },
-        ].map((kpi, idx) => (
-          <motion.div 
-            key={kpi.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center gap-4"
-          >
-            <div className={`p-4 rounded-lg ${kpi.bg}`}>
-              <kpi.icon className={`w-6 h-6 ${kpi.color}`} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">{kpi.title}</p>
-              <h3 className="text-2xl font-bold text-gray-900">{kpi.value}</h3>
-            </div>
-          </motion.div>
-        ))}
+  // Formatting currency helper
+  const formatUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+  return (
+    <div className="p-8 space-y-8 bg-[#f8fafc] min-h-screen text-slate-900">
+      <div className="flex justify-between items-end">
+        <div>
+          <h2 className="text-4xl font-extrabold tracking-tight">Executive Dashboard</h2>
+          <p className="text-slate-500 mt-1">Real-time insights powered by Databricks Serverless.</p>
+        </div>
+        <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200 text-sm font-medium text-slate-600">
+          Last updated: {new Date().toLocaleTimeString()}
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex items-center gap-2">
-          <Package className="w-5 h-5 text-gray-400" />
-          <h2 className="text-lg font-semibold text-gray-900">Top Performing Products</h2>
+      {/* --- KPI Row --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-5">
+          <div className="p-4 bg-green-50 rounded-xl text-green-600">
+            <DollarSign size={28} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-500 uppercase">Total Revenue</p>
+            <p className="text-3xl font-bold">{formatUSD(data.kpis.total_revenue)}</p>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-500">
-            <thead className="bg-gray-50 text-gray-700 uppercase">
-              <tr>
-                <th className="px-6 py-4 font-medium">Product Name</th>
-                <th className="px-6 py-4 font-medium text-right">Units Sold</th>
-                <th className="px-6 py-4 font-medium text-right">Revenue Generated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topProducts.map((product: any, idx) => (
-                <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900">{product.product_name}</td>
-                  <td className="px-6 py-4 text-right">{product.units_sold}</td>
-                  <td className="px-6 py-4 text-right text-green-600 font-medium">
-                    ${product.revenue.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-5">
+          <div className="p-4 bg-blue-50 rounded-xl text-blue-600">
+            <ShoppingBag size={28} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-500 uppercase">Total Orders</p>
+            <p className="text-3xl font-bold">{data.kpis.total_orders}</p>
+          </div>
         </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-5">
+          <div className="p-4 bg-purple-50 rounded-xl text-purple-600">
+            <TrendingUp size={28} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-500 uppercase">Avg Order Value</p>
+            <p className="text-3xl font-bold">
+              {formatUSD(data.kpis.total_revenue / data.kpis.total_orders)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* --- Charts Section --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* Sales Performance Chart */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-2 mb-6">
+            <Package className="text-slate-400" size={20} />
+            <h3 className="text-lg font-bold text-slate-800">Top Product Performance</h3>
+          </div>
+          <div className="h-87.5 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.topProducts} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="title" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
+                <Tooltip 
+                  cursor={{fill: '#f8fafc'}}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                />
+                <Bar dataKey="revenue_generated" name="Revenue" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Order Status Donut Chart */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-2 mb-6">
+            <Loader2 className="text-slate-400" size={20} />
+            <h3 className="text-lg font-bold text-slate-800">Order Fulfilment Status</h3>
+          </div>
+          <div className="h-87.5 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data.orderStatuses}
+                  dataKey="count"
+                  nameKey="order_status"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={80}
+                  outerRadius={120}
+                  paddingAngle={5}
+                >
+                  {data.orderStatuses.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" height={36}/>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
       </div>
     </div>
   );
