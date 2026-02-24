@@ -1,9 +1,11 @@
 require("dotenv").config();
 const mysql = require("mysql2/promise");
 const { Kafka } = require("kafkajs");
+const fs = require("fs").promises; // 1. Added the File System module
 
 const KAFKA_TOPIC = "ecommerce_orders_v1";
 const POLL_INTERVAL = 5000;
+const STATE_FILE = "sync-state.json"; // 2. Define where we save our state
 
 const kafka = new Kafka({
   clientId: "tidb-orders-loader",
@@ -11,7 +13,21 @@ const kafka = new Kafka({
 });
 
 const producer = kafka.producer();
-let lastSyncedOrderItemId = 0;
+
+// 3. Helper function to read the last saved ID
+async function getLastId() {
+  try {
+    const data = await fs.readFile(STATE_FILE, "utf-8");
+    return JSON.parse(data).lastId;
+  } catch (err) {
+    return 0; // If the file doesn't exist yet, start at 0
+  }
+}
+
+// 4. Helper function to save the new ID
+async function saveLastId(id) {
+  await fs.writeFile(STATE_FILE, JSON.stringify({ lastId: id }));
+}
 
 async function syncOrders() {
   const connection = await mysql.createConnection({
@@ -21,6 +37,10 @@ async function syncOrders() {
 
   await producer.connect();
   console.log("✅ Connected to TiDB & Kafka");
+
+  // 5. Load the ID from the file when the script starts
+  let lastSyncedOrderItemId = await getLastId();
+  console.log(`🚀 Resuming sync from order_item_id: ${lastSyncedOrderItemId}`);
 
   while (true) {
     const [rows] = await connection.execute(
@@ -45,7 +65,7 @@ async function syncOrders() {
     );
 
     if (rows.length > 0) {
-      console.log(`📦 ${rows.length} new order items`);
+      console.log(`📦 ${rows.length} new order items pulled`);
 
       for (const row of rows) {
         const event = {
@@ -70,6 +90,10 @@ async function syncOrders() {
 
         lastSyncedOrderItemId = row.order_item_id;
       }
+
+      // 6. Save the state after successfully sending the batch to Redpanda
+      await saveLastId(lastSyncedOrderItemId);
+      console.log(`💾 Checkpoint saved: last_id is now ${lastSyncedOrderItemId}`);
     }
 
     await new Promise((r) => setTimeout(r, POLL_INTERVAL));

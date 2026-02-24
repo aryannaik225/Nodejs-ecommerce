@@ -2,3 +2,4 @@ crud/.env
 node_modules/
 dist/
 .env
+sync-state.json

@@ -5,6 +5,7 @@ import { loginAdminAction, verifyAdminTokenAction } from "@/lib/utils/actions";
 import { Lock, Loader2, ShoppingBag, LogOut } from "lucide-react";
 import Inventory from "@/components/admin-components/Inventory";
 import Coupons from "@/components/admin-components/Coupons";
+import Analytics from "@/components/admin-components/Analytics";
 import { Product, Category, Coupon } from "@/lib/utils/types";
 import { authFetch } from "@/lib/utils/apiClient";
 
@@ -14,7 +15,7 @@ export default function AdminDashboard() {
   const [adminPassword, setAdminPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
-  const [activeTab, setActiveTab] = useState("Inventory");
+  const [activeTab, setActiveTab] = useState("Analytics");
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -146,6 +147,12 @@ export default function AdminDashboard() {
   };
 
   const tabs = [
+    {
+      name: "Analytics",
+      component: (
+        <Analytics getAuthHeaders={getAuthHeaders} />
+      ),
+    },
     {
       name: "Inventory",
       component: (

@@ -8,6 +8,7 @@ import productRouter from './productRoutes.js';
 import redisRouter from './redisRoutes.js';
 import recommendationRouter from './recommendationRoutes.js';
 import wishlistRouter from './wishlistRoutes.js';
+import analyticsRouter from './analyticsRoutes.js';
 
 const appRouter = Router();
 
@@ -20,5 +21,6 @@ appRouter.use('/coupon', couponRouter)
 appRouter.use('/redis', redisRouter);
 appRouter.use('/recommendations', recommendationRouter);
 appRouter.use('/wishlist', wishlistRouter)
+appRouter.use('/analytics', analyticsRouter)
 
 export default appRouter;
