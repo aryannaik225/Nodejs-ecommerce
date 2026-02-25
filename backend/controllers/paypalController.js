@@ -1,9 +1,9 @@
 import dotenv from "dotenv";
 import { decrementStock, incrementStock } from "../TiDB/product-queries.js";
 import { createOrderTransaction, updateOrderStatus } from "../TiDB/order-queries.js";
-// import { redis } from "../redis/lib/redis.js";
 import { getRedisKey, setRedisKey, deleteRedisKey } from "../redis/redis-queries.js";
 import prisma from "../config/prisma.js";
+import { runDatabricksPipeline } from "../Databricks/scripts/databricksPipeline.js";
 
 dotenv.config();
 
@@ -223,6 +223,8 @@ export const captureOrder = async (req, res) => {
     } catch (cleanupError) {
       console.warn("Could not clean up Redis keys after successful capture:", cleanupError);
     }
+
+    runDatabricksPipeline(redisData.dbOrderId).catch(console.error);
 
     return res.status(200).json({
       message: "Payment & order successful",

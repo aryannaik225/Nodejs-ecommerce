@@ -1,4 +1,5 @@
 import { createOrderTransaction, getOrdersWithStatusSimulation, updateOrderStatus } from "../TiDB/order-queries.js";
+import { runDatabricksPipeline } from "../Databricks/scripts/databricksPipeline.js";
 
 export const createOrder = async (req, res) => {
   const userId = req.user.id;
@@ -32,6 +33,9 @@ export const updateStatus = async (req, res) => {
   const { status } = req.body;
   try {
     const updatedOrder = await updateOrderStatus(orderId, status);
+
+    runDatabricksPipeline(orderId).catch(console.error)
+
     return res.status(200).json({
       message: "Order status updated successfully",
       order: updatedOrder
