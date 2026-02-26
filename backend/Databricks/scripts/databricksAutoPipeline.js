@@ -3,11 +3,10 @@ import prisma from '../../config/prisma.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-import axios from 'axios';
 
 dotenv.config();
 
-const { DATABRICKS_HOST, DATABRICKS_PATH, DATABRICKS_TOKEN, DATABRICKS_PIPELINE_ID } = process.env;
+const { DATABRICKS_HOST, DATABRICKS_PATH, DATABRICKS_TOKEN } = process.env;
 
 const escapeStr = (str) => str ? str.replace(/'/g, "''") : "";
 
@@ -24,7 +23,7 @@ export const runDatabricksPipeline = async (orderId) => {
   let session;
 
   try {
-    // 1. Extract fresh data from TiDB
+    // 1. Extract fresh data from TiDB (Now including Users and Discounts!)
     const order = await prisma.orders.findUnique({
       where: { id: parseInt(orderId) },
       include: {
@@ -41,11 +40,9 @@ export const runDatabricksPipeline = async (orderId) => {
 
     await client.connect({ host: DATABRICKS_HOST, path: DATABRICKS_PATH, token: DATABRICKS_TOKEN });
     session = await client.openSession();
-    
-    await session.executeStatement(`USE CATALOG workspace;`);
     await session.executeStatement(`USE SCHEMA ecommerce_analytics;`);
 
-    // 2. ENSURE TABLES EXIST (Bronze Layer setup)
+    // 2. ENSURE TABLES EXIST (Protects against schema errors on new deployments)
     console.log(`🏗️ [Databricks] Verifying Bronze schemas...`);
     await executeAndWait(session, `CREATE TABLE IF NOT EXISTS users_bronze (id INT, name STRING, email STRING) USING DELTA;`);
     await executeAndWait(session, `CREATE TABLE IF NOT EXISTS discounts_bronze (id INT, code STRING, discountType STRING, uses INT) USING DELTA;`);
@@ -56,6 +53,7 @@ export const runDatabricksPipeline = async (orderId) => {
     // 3. BRONZE LAYER (Upsert / Merge Data)
     console.log(`🥉 [Databricks] Upserting Bronze Layer with new event data...`);
 
+    // Merge User
     if (order.users) {
       await executeAndWait(session, `
         MERGE INTO users_bronze target
@@ -66,6 +64,7 @@ export const runDatabricksPipeline = async (orderId) => {
       `);
     }
 
+    // Merge Discount Code (If used)
     if (order.DiscountCode) {
       await executeAndWait(session, `
         MERGE INTO discounts_bronze target
@@ -76,9 +75,9 @@ export const runDatabricksPipeline = async (orderId) => {
       `);
     }
 
+    // Merge Order
     const createdAt = order.created_at ? order.created_at.toISOString() : new Date().toISOString();
     const discountId = order.discountCodeId ? order.discountCodeId : 'NULL';
-    
     await executeAndWait(session, `
       MERGE INTO orders_bronze target
       USING (SELECT ${order.id} as id, ${order.user_id} as user_id, ${order.total_amount} as total_amount, '${order.payment_status}' as payment_status, '${order.order_status}' as order_status, '${createdAt}' as created_at, ${discountId} as discountCodeId) source
@@ -87,8 +86,10 @@ export const runDatabricksPipeline = async (orderId) => {
       WHEN NOT MATCHED THEN INSERT *;
     `);
 
+    // Merge Order Items & Associated Products
     if (order.order_items.length > 0) {
       for (const item of order.order_items) {
+        // Upsert the Product to keep catalog/pricing up to date
         if (item.products) {
           await executeAndWait(session, `
             MERGE INTO products_bronze target
@@ -99,6 +100,7 @@ export const runDatabricksPipeline = async (orderId) => {
           `);
         }
 
+        // Upsert the Order Item
         await executeAndWait(session, `
           MERGE INTO order_items_bronze target
           USING (SELECT ${item.id} as id, ${item.order_id} as order_id, ${item.product_id} as product_id, ${item.product_price} as product_price, ${item.quantity} as quantity) source
@@ -109,44 +111,59 @@ export const runDatabricksPipeline = async (orderId) => {
       }
     }
 
-    // 4. TRIGGER DLT PIPELINE (Let Databricks handle Silver & Gold)
-    console.log(`⚙️ [Databricks] Triggering DLT Pipeline to process Silver and Gold sub-layers...`);
-    if (DATABRICKS_PIPELINE_ID) {
-      try {
-        const response = await axios.post(
-          `https://${DATABRICKS_HOST}/api/2.0/pipelines/${DATABRICKS_PIPELINE_ID}/updates`,
-          {},
-          {
-            headers: {
-              'Authorization': `Bearer ${DATABRICKS_TOKEN}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        console.log(`✅ [Databricks] DLT Pipeline Triggered! Update ID: ${response.data.update_id}`);
-      } catch (dltError) {
-        console.error("❌ [Databricks] Failed to trigger DLT pipeline via API:", dltError?.response?.data || dltError.message);
-      }
-    } else {
-      console.log("⚠️ [Databricks] No DATABRICKS_PIPELINE_ID found in .env. Skipping auto-trigger.");
-    }
+    // 4. SILVER LAYER (Cleaned & Joined View)
+    console.log(`🥈 [Databricks] Updating Silver Layer...`);
+    await executeAndWait(session, `
+      CREATE OR REPLACE VIEW orders_silver_view AS
+      SELECT 
+        o.id as order_id, o.user_id, o.total_amount, o.payment_status, o.order_status, o.created_at,
+        u.name as user_name, u.email as user_email,
+        d.code as discount_code, d.discountType as discount_type
+      FROM orders_bronze o
+      LEFT JOIN users_bronze u ON o.user_id = u.id
+      LEFT JOIN discounts_bronze d ON o.discountCodeId = d.id
+      WHERE o.payment_status != 'failed' AND o.order_status != 'cancelled';
+    `);
 
-    // 5. EXPORT GOLD DATA FOR TABLEAU
-    console.log(`📝 [Databricks] Fetching latest Gold data for Tableau Export...`);
-    
-    const results = await executeAndWait(session, `SELECT * FROM workspace.ecommerce_analytics.poc_gold_customer_ltv ORDER BY total_spent_usd DESC`);
+    // 5. GOLD LAYER (Business Aggregation View - Ready for Tableau)
+    console.log(`🥇 [Databricks] Updating Gold Layer...`);
+    await executeAndWait(session, `
+      CREATE OR REPLACE VIEW tableau_gold_view AS
+      SELECT 
+        s.order_id,
+        s.created_at AS order_date,
+        s.order_status,
+        s.user_name,
+        s.user_email,
+        COALESCE(s.discount_code, 'None') AS promo_code_used,
+        p.title AS product_name,
+        oi.quantity AS units_sold,
+        (oi.quantity * oi.product_price / 100) AS gross_revenue_usd,
+        (s.total_amount / 100) AS net_order_total_usd
+      FROM orders_silver_view s
+      JOIN order_items_bronze oi ON s.order_id = oi.order_id
+      JOIN products_bronze p ON oi.product_id = p.id;
+    `);
+
+    // 6. EXPORT FOR TABLEAU
+    console.log(`📝 [Databricks] Fetching Gold data for Tableau Export...`);
+    const results = await executeAndWait(session, `SELECT * FROM tableau_gold_view ORDER BY order_date DESC`);
 
     if (results.length > 0) {
       const headers = Object.keys(results[0]).join(',');
       const csvRows = results.map(row =>
         Object.values(row).map(val => {
-          if (val instanceof Date) return val.toISOString();
-          if (typeof val === 'string' && val.includes(',')) return `"${val}"`;
+          if (val instanceof Date) {
+            return val.toISOString();
+          }
+          if (typeof val === 'string' && val.includes(',')) {
+            return `"${val}"`;
+          }
           return val;
         }).join(',')
       );
 
-      const exportPath = path.resolve('Tableau/tableau_data_feed.csv');
+      const exportPath = path.resolve('backend/Tableau/tableau_data_feed.csv');
       fs.writeFileSync(exportPath, [headers, ...csvRows].join('\n'));
       console.log(`🎉 [Databricks] Pipeline complete! CSV updated at: ${exportPath}`);
     }
